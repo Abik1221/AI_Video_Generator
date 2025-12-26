@@ -3,18 +3,32 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from app.config import settings
 
+# Create database URL
+if settings.database_url.startswith("sqlite"):
+    # For SQLite, use relative path
+    SQLALCHEMY_DATABASE_URL = settings.database_url
+else:
+    # For PostgreSQL/MySQL, use the provided URL
+    SQLALCHEMY_DATABASE_URL = settings.database_url
 
-# Create database engine
 engine = create_engine(
-    settings.database_url,
-    connect_args={"check_same_thread": False}  # Needed for SQLite
+    SQLALCHEMY_DATABASE_URL,
+    # Add connect_args for SQLite to allow multiple threads
+    connect_args={"check_same_thread": False} if settings.database_url.startswith("sqlite") else {}
 )
 
-# Create session maker
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# Create base class for models
 Base = declarative_base()
+
+# Import all models here to ensure they are registered with SQLAlchemy
+from app.models.job import Job, Language, Setting
+from app.models.user import User, UserSession
+
+# Create all tables
+def create_all_tables():
+    Base.metadata.create_all(bind=engine)
+
 
 def get_db():
     """
