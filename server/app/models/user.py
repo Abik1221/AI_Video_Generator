@@ -26,18 +26,16 @@ class User(Base):
     def __repr__(self):
         return f"<User(id={self.id}, username='{self.username}', email='{self.email}')>"
     
-    def verify_password(self, plain_password):
-        """
-        Verify a plain password against the hashed password
-        """
-        return pwd_context.verify(plain_password, self.hashed_password)
-    
     @staticmethod
     def hash_password(plain_password):
-        """
-        Hash a plain password
-        """
-        return pwd_context.hash(plain_password)
+        """Hash a plain password using SHA256"""
+        import hashlib
+        return hashlib.sha256(plain_password.encode()).hexdigest()
+    
+    def verify_password(self, plain_password):
+        """Verify a plain password against the hashed password"""
+        import hashlib
+        return self.hashed_password == hashlib.sha256(plain_password.encode()).hexdigest()
     
     @staticmethod
     def generate_password(length=12):

@@ -1,6 +1,8 @@
+from fastapi import Depends
 from sqlalchemy.orm import Session
 from typing import Optional, Dict, Any
 from app.models.job import Setting
+from app.database import get_db
 from app.config import settings
 import json
 
@@ -107,7 +109,7 @@ class SettingsService:
 
 
 # Global settings service instance (in production, you'd want to use dependency injection)
-def get_settings_service(db: Session) -> SettingsService:
+def get_settings_service(db: Session = Depends(get_db)) -> SettingsService:
     """
     Get settings service instance with database session
     """

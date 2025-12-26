@@ -3,7 +3,7 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import func
 from datetime import timedelta
-from typing import Optional
+from typing import Optional, List
 from app.database import get_db
 from app.services.auth_service import auth_service
 from app.models.user import User
@@ -239,7 +239,7 @@ async def get_user(
     )
 
 
-@router.get("/auth/users", summary="Get all users (admin only)")
+@router.get("/auth/users", response_model=List[UserResponse], summary="Get all users (admin only)")
 async def get_all_users(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)

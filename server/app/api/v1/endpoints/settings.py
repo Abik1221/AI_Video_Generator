@@ -10,9 +10,8 @@ router = APIRouter()
 
 @router.get("/settings", summary="Get all settings")
 async def get_all_settings(
-    settings_service: SettingsService = Depends(get_settings_service),
-    db: Session = Depends(get_db)
-):
+    settings_service: SettingsService = Depends(get_settings_service)
+) -> Dict[str, Any]:
     """
     Retrieve all application settings
     """
@@ -26,9 +25,8 @@ async def get_all_settings(
 @router.get("/settings/{key}", summary="Get specific setting")
 async def get_setting(
     key: str,
-    settings_service: SettingsService = Depends(get_settings_service),
-    db: Session = Depends(get_db)
-):
+    settings_service: SettingsService = Depends(get_settings_service)
+) -> Dict[str, Any]:
     """
     Retrieve a specific setting by key
     """
@@ -48,9 +46,8 @@ async def update_setting(
     value: str,
     description: str = None,
     type: str = "string",
-    settings_service: SettingsService = Depends(get_settings_service),
-    db: Session = Depends(get_db)
-):
+    settings_service: SettingsService = Depends(get_settings_service)
+) -> Dict[str, Any]:
     """
     Update a specific setting
     """
@@ -79,9 +76,8 @@ async def update_setting(
 @router.put("/settings", summary="Update multiple settings")
 async def update_multiple_settings(
     settings: Dict[str, Any],
-    settings_service: SettingsService = Depends(get_settings_service),
-    db: Session = Depends(get_db)
-):
+    settings_service: SettingsService = Depends(get_settings_service)
+) -> Dict[str, Any]:
     """
     Update multiple settings at once
     """
@@ -96,9 +92,8 @@ async def update_multiple_settings(
 
 @router.post("/settings/initialize", summary="Initialize default settings")
 async def initialize_default_settings(
-    settings_service: SettingsService = Depends(get_settings_service),
-    db: Session = Depends(get_db)
-):
+    settings_service: SettingsService = Depends(get_settings_service)
+) -> Dict[str, Any]:
     """
     Initialize default settings for the application
     """

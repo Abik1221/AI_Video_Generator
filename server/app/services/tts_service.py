@@ -1,8 +1,6 @@
 import os
 import openai
 from abc import ABC, abstractmethod
-from google.cloud import texttospeech
-from google.oauth2 import service_account
 from app.config import settings
 from app.models.job import Language
 from sqlalchemy.orm import Session
@@ -35,6 +33,12 @@ class OpenAITTSService(TTSInterface):
 
 class GoogleCloudTTSService(TTSInterface):
     def __init__(self):
+        try:
+            from google.cloud import texttospeech
+            from google.oauth2 import service_account
+        except ImportError:
+            raise ImportError("Please install google-cloud-texttospeech: pip install google-cloud-texttospeech")
+        
         if settings.google_service_account_file:
             credentials = service_account.Credentials.from_service_account_file(
                 settings.google_service_account_file
@@ -46,6 +50,8 @@ class GoogleCloudTTSService(TTSInterface):
 
     def synthesize_speech(self, text: str, language_code: str, voice_name: str) -> bytes:
         try:
+            from google.cloud import texttospeech
+            
             synthesis_input = texttospeech.SynthesisInput(text=text)
 
             # Set the voice parameters
@@ -154,7 +160,10 @@ class GoogleGeminiTranslationService:
 class TTSManager:
     def __init__(self):
         self.openai_service = OpenAITTSService() if settings.openai_api_key else None
-        self.google_service = GoogleCloudTTSService() if settings.google_cloud_credentials else None
+        try:
+            self.google_service = GoogleCloudTTSService() if settings.google_cloud_credentials else None
+        except ImportError:
+            self.google_service = None
         self.translation_service = GoogleGeminiTranslationService()
 
     def synthesize_speech(self, text: str, target_language: str, voice_name: str = "nova") -> bytes:

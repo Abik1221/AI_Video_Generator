@@ -253,3 +253,107 @@ class VideoProcessingService:
         except Exception as e:
             logger.error(f"Error getting video info: {e}")
             raise
+
+
+import subprocess
+import os
+from typing import Tuple
+import ffmpeg
+
+
+class VideoProcessor:
+    """
+    Service for processing video files using FFmpeg
+    """
+    
+    def __init__(self):
+        # Verify that FFmpeg is available
+        try:
+            result = subprocess.run(['ffmpeg', '-version'], 
+                                  stdout=subprocess.PIPE, 
+                                  stderr=subprocess.PIPE)
+            if result.returncode != 0:
+                raise Exception("FFmpeg not found in system")
+        except FileNotFoundError:
+            raise Exception("FFmpeg not found in system")
+    
+    def merge_audio_video(self, video_path: str, audio_path: str) -> str:
+        """
+        Merge audio and video files using FFmpeg
+        """
+        # Create output path
+        output_path = video_path.replace('.mp4', '_with_audio.mp4')
+        
+        try:
+            # Use ffmpeg-python to merge audio and video
+            (
+                ffmpeg
+                .input(video_path)
+                .input(audio_path)
+                .output(output_path, vcodec='copy', acodec='aac', strict='experimental')
+                .overwrite_output()
+                .run(capture_stdout=True, capture_stderr=True)
+            )
+            
+            return output_path
+        except Exception as e:
+            raise Exception(f"Error merging audio and video: {str(e)}")
+    
+    def adjust_audio_duration(self, audio_path: str, target_duration: float) -> str:
+        """
+        Adjust audio duration to match target duration
+        """
+        output_path = audio_path.replace('.mp3', '_adjusted.mp3')
+        
+        try:
+            # Use ffmpeg to adjust audio duration
+            (
+                ffmpeg
+                .input(audio_path)
+                .output(output_path, t=target_duration, acodec='copy')
+                .overwrite_output()
+                .run(capture_stdout=True, capture_stderr=True)
+            )
+            
+            return output_path
+        except Exception as e:
+            raise Exception(f"Error adjusting audio duration: {str(e)}")
+    
+    def get_video_duration(self, video_path: str) -> float:
+        """
+        Get the duration of a video file in seconds
+        """
+        try:
+            probe = ffmpeg.probe(video_path)
+            video_stream = next((stream for stream in probe['streams'] 
+                                if stream['codec_type'] == 'video'), None)
+            if video_stream is None:
+                raise Exception("No video stream found in file")
+            
+            duration = float(video_stream['duration'])
+            return duration
+        except Exception as e:
+            raise Exception(f"Error getting video duration: {str(e)}")
+    
+    def get_video_info(self, video_path: str) -> dict:
+        """
+        Get video information (resolution, format, etc.)
+        """
+        try:
+            probe = ffmpeg.probe(video_path)
+            video_stream = next((stream for stream in probe['streams'] 
+                                if stream['codec_type'] == 'video'), None)
+            if video_stream is None:
+                raise Exception("No video stream found in file")
+            
+            info = {
+                'width': int(video_stream['width']),
+                'height': int(video_stream['height']),
+                'duration': float(video_stream['duration']),
+                'format': probe['format']['format_name'],
+                'size': int(probe['format']['size'])
+            }
+            
+            return info
+        except Exception as e:
+            raise Exception(f"Error getting video info: {str(e)}")
