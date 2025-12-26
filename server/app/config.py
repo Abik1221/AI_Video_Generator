@@ -1,41 +1,51 @@
 from pydantic_settings import BaseSettings
-from typing import Optional
-import os
+from typing import List, Optional
 
 
 class Settings(BaseSettings):
-    app_name: str = "Property Video Generator API"
-    app_version: str = "1.0.0"
-    host: str = "0.0.0.0"
-    port: int = 8000
-    
     # Database settings
-    database_url: str = f"sqlite:///./property_video_generator.db"
-    database_pool_size: int = 20
-    database_pool_overflow: int = 0
+    database_url: str = "sqlite:///./estatevision_ai.db"
     
-    # OpenAI settings
-    openai_api_key: Optional[str] = os.getenv("OPENAI_API_KEY")
-    openai_tts_model: str = "tts-1"
-    openai_tts_voice: str = "nova"
+    # API Keys
+    openai_api_key: Optional[str] = None
+    google_cloud_credentials: Optional[str] = None
+    google_service_account_file: Optional[str] = None
+    google_gemini_api_key: Optional[str] = None  # New Google Gemini API key
     
-    # Google Cloud TTS settings
-    google_cloud_credentials_path: Optional[str] = os.getenv("GOOGLE_CLOUD_CREDENTIALS_PATH")
+    # Security
+    secret_key: str = "your-secret-key-here-change-in-production"
+    algorithm: str = "HS256"
+    access_token_expire_minutes: int = 30
     
-    # File storage settings
-    upload_folder: str = "uploads"
-    output_folder: str = "outputs"
-    temp_folder: str = "temp"
+    # CORS settings
+    cors_origins: List[str] = ["*"]  # Change in production
     
-    # Processing settings
-    max_video_size_mb: int = 100  # 100MB max
-    allowed_video_formats: list = ["mp4", "mov", "avi", "mkv", "wmv"]
-    max_description_length: int = 5000  # characters
+    # TTS settings
+    default_tts_voice: str = "nova"
     
-    # Job processing settings
+    # Video processing settings
+    max_video_size_mb: int = 100
+    max_description_length: int = 5000
+    video_processing_quality: str = "720p"
+    
+    # System settings
+    enable_tts_fallback: bool = True
+    tts_fallback_service: str = "google"
+    
+    # Email settings
+    enable_email_notifications: bool = False
+    email_smtp_server: str = "smtp.gmail.com"
+    email_smtp_port: int = 587
+    
+    # API rate limiting
+    enable_api_rate_limiting: bool = True
+    api_rate_limit_requests: int = 100
+    api_rate_limit_window: int = 3600
+    
+    # Background processing
+    enable_background_processing: bool = True
     max_concurrent_jobs: int = 5
-    job_timeout_seconds: int = 3600  # 1 hour
-    
+
     class Config:
         env_file = ".env"
 

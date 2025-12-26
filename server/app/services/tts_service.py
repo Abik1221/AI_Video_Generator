@@ -1,211 +1,207 @@
 import os
-import asyncio
-import tempfile
+import openai
 from abc import ABC, abstractmethod
-from typing import Optional
-from pathlib import Path
-from loguru import logger
-from cachetools import TTLCache
-from tenacity import retry, stop_after_attempt, wait_exponential
-
+from google.cloud import texttospeech
+from google.oauth2 import service_account
 from app.config import settings
+from app.models.job import Language
+from sqlalchemy.orm import Session
+import requests
+import json
+from typing import Optional
 
 
-class BaseTTSService(ABC):
-    """
-    Abstract base class for TTS services
-    """
-    
+class TTSInterface(ABC):
     @abstractmethod
-    async def generate_audio(self, text: str, language_code: str, output_path: str) -> str:
-        """
-        Generate audio from text
-        :param text: Input text to convert to speech
-        :param language_code: Target language code (e.g., 'en', 'te')
-        :param output_path: Path to save the generated audio file
-        :return: Path to the generated audio file
-        """
+    def synthesize_speech(self, text: str, language_code: str, voice_name: str) -> bytes:
         pass
 
 
-class OpenAITTSService(BaseTTSService):
-    """
-    OpenAI TTS service implementation
-    """
-    
+class OpenAITTSService(TTSInterface):
     def __init__(self):
-        # Import here to avoid issues if OpenAI is not installed
+        self.client = openai.OpenAI(api_key=settings.openai_api_key)
+
+    def synthesize_speech(self, text: str, language_code: str, voice_name: str) -> bytes:
         try:
-            from openai import AsyncOpenAI
-            self.client = AsyncOpenAI(api_key=settings.openai_api_key)
-        except ImportError:
-            logger.error("OpenAI library not installed. Please install with: pip install openai")
-            raise
-        except Exception as e:
-            logger.error(f"Error initializing OpenAI client: {e}")
-            raise
-    
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
-    async def generate_audio(self, text: str, language_code: str, output_path: str) -> str:
-        """
-        Generate audio using OpenAI TTS API
-        """
-        try:
-            # Map language codes to appropriate voices
-            language_to_voice = {
-                "en": settings.openai_tts_voice or "nova",  # Default to nova for English
-                "te": "onyx",  # Using onyx for Telugu as it works well for multiple languages
-            }
-            
-            voice = language_to_voice.get(language_code, "nova")
-            
-            logger.info(f"Generating audio with OpenAI TTS for language: {language_code}, voice: {voice}")
-            
-            # Generate speech using OpenAI
-            response = await self.client.audio.speech.create(
-                model=settings.openai_tts_model,
-                voice=voice,
+            response = self.client.audio.speech.create(
+                model="tts-1",
+                voice=voice_name,
                 input=text
             )
-            
-            # Save the audio file
-            response.stream_to_file(output_path)
-            
-            logger.info(f"Audio successfully generated at: {output_path}")
-            return output_path
-            
+            return response.content
         except Exception as e:
-            logger.error(f"Error generating audio with OpenAI: {e}")
-            raise
+            raise Exception(f"OpenAI TTS Error: {str(e)}")
 
 
-class GoogleCloudTTSService(BaseTTSService):
-    """
-    Google Cloud TTS service implementation (fallback)
-    """
-    
+class GoogleCloudTTSService(TTSInterface):
     def __init__(self):
-        # Import here to avoid issues if Google Cloud library is not installed
-        try:
-            from google.cloud import texttospeech
-            if settings.google_cloud_credentials_path:
-                os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = settings.google_cloud_credentials_path
-            self.client = texttospeech.TextToSpeechClient()
-        except ImportError:
-            logger.error("Google Cloud TextToSpeech library not installed. Please install with: pip install google-cloud-texttospeech")
-            raise
-        except Exception as e:
-            logger.error(f"Error initializing Google Cloud TTS client: {e}")
-            raise
-    
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
-    async def generate_audio(self, text: str, language_code: str, output_path: str) -> str:
-        """
-        Generate audio using Google Cloud TTS API
-        """
-        try:
-            # Map language codes to Google Cloud TTS voices
-            language_to_voice = {
-                "en": {"language_code": "en-US", "name": "en-US-Neural2-J"},
-                "te": {"language_code": "te-IN", "name": "te-IN-Standard-A"},
-            }
-            
-            lang_config = language_to_voice.get(language_code, {"language_code": "en-US", "name": "en-US-Neural2-J"})
-            
-            # Set the text input to be synthesized
-            synthesis_input = {"text": text}
-            
-            # Build the voice request
-            voice = texttospeech.VoiceSelectionParams(
-                language_code=lang_config["language_code"],
-                name=lang_config["name"]
+        if settings.google_service_account_file:
+            credentials = service_account.Credentials.from_service_account_file(
+                settings.google_service_account_file
             )
-            
+            self.client = texttospeech.TextToSpeechClient(credentials=credentials)
+        else:
+            # Use application default credentials
+            self.client = texttospeech.TextToSpeechClient()
+
+    def synthesize_speech(self, text: str, language_code: str, voice_name: str) -> bytes:
+        try:
+            synthesis_input = texttospeech.SynthesisInput(text=text)
+
+            # Set the voice parameters
+            voice = texttospeech.VoiceSelectionParams(
+                language_code=language_code,
+                name=voice_name  # e.g., "en-US-Standard-C"
+            )
+
             # Select the type of audio file
             audio_config = texttospeech.AudioConfig(
                 audio_encoding=texttospeech.AudioEncoding.MP3
             )
-            
-            logger.info(f"Generating audio with Google Cloud TTS for language: {language_code}")
-            
-            # Perform the text-to-speech request
+
             response = self.client.synthesize_speech(
                 input=synthesis_input,
                 voice=voice,
                 audio_config=audio_config
             )
-            
-            # Write the response to the output file
-            with open(output_path, "wb") as out:
-                out.write(response.audio_content)
-            
-            logger.info(f"Audio successfully generated at: {output_path}")
-            return output_path
-            
+
+            return response.audio_content
         except Exception as e:
-            logger.error(f"Error generating audio with Google Cloud TTS: {e}")
-            raise
+            raise Exception(f"Google Cloud TTS Error: {str(e)}")
 
 
-class TTSServiceManager:
+class GoogleGeminiTranslationService:
     """
-    TTS Service manager that handles multiple TTS providers with fallback
+    Service to use Google Gemini for translation
     """
-    
     def __init__(self):
-        self.openai_service = None
-        self.google_service = None
-        
-        # Initialize services if API keys are available
-        if settings.openai_api_key:
-            try:
-                self.openai_service = OpenAITTSService()
-            except Exception as e:
-                logger.warning(f"Could not initialize OpenAI TTS service: {e}")
-        
-        if settings.google_cloud_credentials_path:
-            try:
-                self.google_service = GoogleCloudTTSService()
-            except Exception as e:
-                logger.warning(f"Could not initialize Google Cloud TTS service: {e}")
-        
-        # Create cache for repeated text generations (TTL: 1 hour)
-        self.audio_cache = TTLCache(maxsize=100, ttl=3600)
+        self.api_key = settings.google_gemini_api_key
+        self.base_url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent"
     
-    async def generate_audio(self, text: str, language_code: str, output_path: str) -> str:
+    def translate_text(self, text: str, target_language: str) -> str:
         """
-        Generate audio using available TTS services with fallback
+        Translate text using Google Gemini
         """
-        # Check cache first
-        cache_key = f"{text[:50]}_{language_code}"  # Use first 50 chars of text + language as cache key
-        if cache_key in self.audio_cache:
-            cached_path = self.audio_cache[cache_key]
-            if os.path.exists(cached_path):
-                logger.info(f"Using cached audio for text: {text[:50]}...")
-                # Copy cached file to output path
-                import shutil
-                shutil.copy2(cached_path, output_path)
-                return output_path
+        if not self.api_key:
+            raise Exception("Google Gemini API key not configured")
         
-        # Try OpenAI first
+        # Map language codes to names for better prompting
+        language_names = {
+            "en": "English",
+            "te": "Telugu",
+            "es": "Spanish",
+            "fr": "French",
+            "de": "German",
+            "it": "Italian",
+            "pt": "Portuguese",
+            "ru": "Russian",
+            "ja": "Japanese",
+            "ko": "Korean",
+            "zh": "Chinese",
+            "hi": "Hindi",
+            "ar": "Arabic",
+            "bn": "Bengali",
+            "pa": "Punjabi"
+        }
+        
+        target_lang_name = language_names.get(target_language, target_language)
+        
+        prompt = f"""
+        Translate the following text to {target_lang_name}. 
+        Only return the translated text, nothing else:
+        
+        {text}
+        """
+        
+        headers = {
+            "Content-Type": "application/json"
+        }
+        
+        data = {
+            "contents": [{
+                "parts": [{
+                    "text": prompt
+                }]
+            }],
+            "generationConfig": {
+                "temperature": 0.1,
+                "maxOutputTokens": 8192,
+                "topP": 0.8,
+                "topK": 40
+            }
+        }
+        
+        try:
+            response = requests.post(
+                f"{self.base_url}?key={self.api_key}",
+                headers=headers,
+                data=json.dumps(data)
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                if "candidates" in result and len(result["candidates"]) > 0:
+                    translated_text = result["candidates"][0]["content"]["parts"][0]["text"].strip()
+                    return translated_text
+                else:
+                    raise Exception("No translation returned from Gemini")
+            else:
+                raise Exception(f"Gemini API Error: {response.status_code} - {response.text}")
+        except Exception as e:
+            raise Exception(f"Translation Error: {str(e)}")
+
+
+class TTSManager:
+    def __init__(self):
+        self.openai_service = OpenAITTSService() if settings.openai_api_key else None
+        self.google_service = GoogleCloudTTSService() if settings.google_cloud_credentials else None
+        self.translation_service = GoogleGeminiTranslationService()
+
+    def synthesize_speech(self, text: str, target_language: str, voice_name: str = "nova") -> bytes:
+        # First, translate the text if needed using Gemini
+        if target_language != "en":
+            try:
+                translated_text = self.translation_service.translate_text(text, target_language)
+            except Exception as e:
+                # If translation fails, use original text
+                print(f"Translation failed, using original text: {str(e)}")
+                translated_text = text
+        else:
+            translated_text = text
+        
+        # Try OpenAI first, then fallback to Google Cloud
         if self.openai_service:
             try:
-                result = await self.openai_service.generate_audio(text, language_code, output_path)
-                # Cache the result
-                self.audio_cache[cache_key] = result
-                return result
+                return self.openai_service.synthesize_speech(translated_text, target_language, voice_name)
             except Exception as e:
-                logger.warning(f"OpenAI TTS failed: {e}. Trying fallback service...")
+                print(f"OpenAI TTS failed: {str(e)}")
         
-        # Try Google Cloud TTS as fallback
         if self.google_service:
             try:
-                result = await self.google_service.generate_audio(text, language_code, output_path)
-                # Cache the result
-                self.audio_cache[cache_key] = result
-                return result
+                return self.google_service.synthesize_speech(translated_text, target_language, voice_name)
             except Exception as e:
-                logger.error(f"Google Cloud TTS also failed: {e}")
+                print(f"Google Cloud TTS failed: {str(e)}")
         
-        # If both services failed, raise an exception
-        raise Exception("All TTS services failed. Please check your API keys and configurations.")
+        raise Exception("All TTS services failed")
+
+    def get_supported_languages(self, db: Session) -> list:
+        """
+        Get supported languages from database, with fallback to default languages
+        """
+        languages = db.query(Language).filter(Language.is_active == True).all()
+        
+        if not languages:
+            # Default languages if none in database
+            default_languages = [
+                Language(code="en", name="English", tts_voice="en-US-Standard-C"),
+                Language(code="te", name="Telugu", tts_voice="te-IN-Standard-A"),
+                Language(code="es", name="Spanish", tts_voice="es-ES-Standard-A"),
+                Language(code="fr", name="French", tts_voice="fr-FR-Standard-A"),
+                Language(code="de", name="German", tts_voice="de-DE-Standard-A"),
+            ]
+            for lang in default_languages:
+                db.add(lang)
+            db.commit()
+            return default_languages
+        
+        return languages
