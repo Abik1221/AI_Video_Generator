@@ -11,7 +11,8 @@ import {
   FileVideo,
   ArrowRight,
   TrendingUp,
-  ChevronRight
+  ChevronRight,
+  Trash2
 } from 'lucide-react';
 import { PropertyVideo, GenerationStatus, SystemLog } from '../types';
 import { apiService } from '../services/apiService';
@@ -23,10 +24,13 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ onStartGenerating, recentVideos }) => {
   const [jobs, setJobs] = useState<PropertyVideo[]>(recentVideos);
+  const [showAllJobs, setShowAllJobs] = useState(false);
   const [logs, setLogs] = useState<SystemLog[]>([]);
   const [isLogsExpanded, setIsLogsExpanded] = useState(false);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
+  const displayJobs = showAllJobs ? jobs : jobs.slice(0, 2);
 
   // Fetch data from backend API
   useEffect(() => {
@@ -104,77 +108,96 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartGenerating, recentVideos }
       {/* Main Operations Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
 
-        {/* Recent Generations Table */}
-        <div className="lg:col-span-2 bg-white rounded-[2rem] p-8 border border-zinc-100 shadow-sm">
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-zinc-50 rounded-xl flex items-center justify-center border border-zinc-100">
-                <FileVideo size={20} className="text-zinc-600" />
+        {/* Recent Generations Table - Only show if there are jobs */}
+        {jobs.length > 0 && (
+          <div className="lg:col-span-2 bg-white rounded-[2rem] p-8 border border-zinc-100 shadow-sm">
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-zinc-50 rounded-xl flex items-center justify-center border border-zinc-100">
+                  <FileVideo size={20} className="text-zinc-600" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900">Queue & History</h3>
+                  <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest mt-0.5">Real-time status tracking</p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900">Queue & History</h3>
-                <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest mt-0.5">Real-time status tracking</p>
-                <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest mt-0.5">Real-time status tracking</p>
-              </div>
+              {jobs.length > 2 && (
+                <button
+                  onClick={() => setShowAllJobs(!showAllJobs)}
+                  className="text-[10px] font-black uppercase tracking-widest text-zinc-500 hover:text-zinc-900 transition-colors"
+                >
+                  {showAllJobs ? 'Show Less' : 'View All'}
+                </button>
+              )}
             </div>
-            <button className="text-[10px] font-black uppercase tracking-widest text-zinc-500 hover:text-zinc-900 transition-colors">View All</button>
-          </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="border-b border-zinc-100 italic">
-                  <th className="text-left py-4 px-6 text-[10px] font-black uppercase tracking-widest text-zinc-500">Sequence</th>
-                  <th className="text-left py-4 px-6 text-[10px] font-black uppercase tracking-widest text-zinc-500">Timestamp</th>
-                  <th className="text-left py-4 px-6 text-[10px] font-black uppercase tracking-widest text-zinc-500">Status</th>
-                  <th className="text-right py-4 px-6 text-[10px] font-black uppercase tracking-widest text-zinc-500">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-50/50">
-                {jobs.length > 0 ? jobs.map((video) => (
-                  <tr key={video.id} className="group hover:bg-zinc-50/50 transition-all cursor-default">
-                    <td className="py-5 px-2">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-8 bg-zinc-100 rounded-lg border border-zinc-100 overflow-hidden flex-shrink-0 relative group">
-                          <img src={video.thumbnailUrl} className="w-full h-full object-cover grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500" alt="" />
-                          <div className="absolute inset-0 bg-zinc-900/10 group-hover:bg-transparent transition-colors"></div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-zinc-100 italic">
+                    <th className="text-left py-4 px-6 text-[10px] font-black uppercase tracking-widest text-zinc-500">Sequence</th>
+                    <th className="text-left py-4 px-6 text-[10px] font-black uppercase tracking-widest text-zinc-500">Language</th>
+                    <th className="text-left py-4 px-6 text-[10px] font-black uppercase tracking-widest text-zinc-500">Timestamp</th>
+                    <th className="text-left py-4 px-6 text-[10px] font-black uppercase tracking-widest text-zinc-500">Status</th>
+                    <th className="text-right py-4 px-6 text-[10px] font-black uppercase tracking-widest text-zinc-500">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-50/50">
+                  {displayJobs.map((video) => (
+                    <tr key={video.id} className="group hover:bg-zinc-50/50 transition-all cursor-default">
+                      <td className="py-5 px-6">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-8 bg-zinc-100 rounded-lg border border-zinc-100 overflow-hidden flex-shrink-0 relative group">
+                            <img src={video.thumbnailUrl} className="w-full h-full object-cover grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500" alt="" />
+                            <div className="absolute inset-0 bg-zinc-900/10 group-hover:bg-transparent transition-colors"></div>
+                          </div>
+                          <span className="text-xs font-bold text-zinc-800 uppercase tracking-tight truncate max-w-[180px]">{video.title}</span>
                         </div>
-                        <span className="text-xs font-bold text-zinc-800 uppercase tracking-tight truncate max-w-[180px]">{video.title}</span>
-                      </div>
-                    </td>
-                    <td className="py-5 px-2">
-                      <span className="text-[9px] font-black uppercase tracking-widest bg-zinc-100 text-zinc-500 px-3 py-1 rounded-full border border-zinc-200/50">{video.language}</span>
-                    </td>
-                    <td className="py-5 px-2">
-                      <span className="text-[10px] text-zinc-400 font-medium">{video.createdAt.toLocaleDateString()}</span>
-                    </td>
-                    <td className="py-5 px-2">
-                      <div className="flex items-center gap-2">
-                        <div className={`w-1.5 h-1.5 rounded-full ${video.status === GenerationStatus.COMPLETED ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-zinc-300'
-                          }`} />
-                        <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500">{video.status}</span>
-                      </div>
-                    </td>
-                    <td className="py-5 px-2 text-right">
-                      <button className="p-2 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-xl transition-all">
-                        <PlayCircle size={18} />
-                      </button>
-                    </td>
-                  </tr>
-                )) : (
-                  <tr>
-                    <td colSpan={5} className="py-24 text-center">
-                      <div className="flex flex-col items-center gap-4 opacity-30">
-                        <Activity size={32} />
-                        <p className="text-[10px] text-zinc-500 font-black uppercase tracking-[0.3em]">{loading ? 'Synchronizing Datastore...' : 'No system activity detected'}</p>
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                      </td>
+                      <td className="py-5 px-6">
+                        <span className="text-[9px] font-black uppercase tracking-widest bg-zinc-100 text-zinc-500 px-3 py-1 rounded-full border border-zinc-200/50">{video.language}</span>
+                      </td>
+                      <td className="py-5 px-6">
+                        <span className="text-[10px] text-zinc-400 font-medium">{video.createdAt.toLocaleDateString()}</span>
+                      </td>
+                      <td className="py-5 px-6">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-1.5 h-1.5 rounded-full ${video.status === GenerationStatus.COMPLETED ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' :
+                            video.status === 'FAILED' ? 'bg-rose-500' : 'bg-zinc-300'
+                            }`} />
+                          <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500">{video.status}</span>
+                        </div>
+                      </td>
+                      <td className="py-5 px-6 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button className="p-2 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-xl transition-all">
+                            <PlayCircle size={18} />
+                          </button>
+                          <button
+                            onClick={async () => {
+                              if (window.confirm('Delete this generation task?')) {
+                                try {
+                                  await apiService.deleteJob(parseInt(video.id));
+                                  setJobs(jobs.filter(j => j.id !== video.id));
+                                } catch (err) {
+                                  console.error('Delete failed:', err);
+                                  alert('Failed to delete job');
+                                }
+                              }
+                            }}
+                            className="p-2 text-zinc-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* System Logs */}
         <div className={`bg-zinc-900 rounded-[2rem] p-8 border border-white/10 shadow-2xl flex flex-col relative overflow-hidden group transition-all duration-500 ${isLogsExpanded ? 'h-[600px]' : 'h-[350px]'}`}>

@@ -6,14 +6,7 @@ import VideoGenerator from './components/VideoGenerator';
 import Login from './components/Login'; // Add Login component
 import SettingsComponent from './components/Settings'; // Add Settings component
 import { AppView, User as UserType, PropertyVideo, GenerationStatus } from './types';
-import { apiService } from './services/apiService';
-import axios from 'axios';
-
-// Create axios instance for direct access
-const apiClient = axios.create({
-  baseURL: process.env.VITE_API_URL || 'http://localhost:8000',
-  timeout: 30000,
-});
+import { apiService, apiClient } from './services/apiService';
 
 // Mock Initial State
 const MOCK_USER: UserType = {

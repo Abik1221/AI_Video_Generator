@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     max_description_length: int = 5000
     video_processing_quality: str = "720p"
     upload_folder: str = "./uploads"
-    allowed_video_formats: List[str] = ["mp4", "avi", "mov", "mkv", "webm"]
+    allowed_video_formats: List[str] = ["mp4", "avi", "mov", "mkv", "webm", "flv", "3gp", "wmv"]
     
     # System settings
     enable_tts_fallback: bool = True

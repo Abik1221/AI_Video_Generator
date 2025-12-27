@@ -1,0 +1,5 @@
+Checking database at estatevision_ai.db...
+Updated 1 users with NULL is_active.
+Admin record: ('admin', 1, 1)
+Database fix committed successfully.
+Current users: [('testuser', 1), ('admin', 1)]

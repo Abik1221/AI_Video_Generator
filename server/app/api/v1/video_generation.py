@@ -1,4 +1,5 @@
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends, BackgroundTasks
+from fastapi.responses import FileResponse
 from fastapi.security import HTTPBearer
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -41,6 +42,7 @@ async def generate_video(
     description_text: str = Form(...),
     target_language: str = Form(...),
     video_file: UploadFile = File(...),
+    resolution: str = Form("720p"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -201,19 +203,18 @@ async def process_video_with_narration(job_id: int, video_path: str, description
         output_filename = f"output_{uuid.uuid4()}.mp4"
         output_path = os.path.join(settings.upload_folder, output_filename)
         
-        # Use ffmpeg to stretch/compress narration to match video duration and mix with original audio
+        # Use ffmpeg to merge narration with video
+        # IMPROVED: Simplified mapping to ensure audio is correctly picked up
         ffmpeg_cmd = [
             'ffmpeg', '-y',  # -y to overwrite output file
-            '-i', video_path,  # Input video
-            '-i', audio_path,  # Input audio (narration)
-            '-filter_complex', 
-            f'[1:a]apad=whole_dur={video_duration}[narration];[0:a][narration]amix=inputs=2:duration=first:dropout_transition=3[aout]',
-            '-map', '0:v',     # Map video from first input
-            '-map', '[aout]',  # Map mixed audio
-            '-c:v', 'copy',    # Copy video stream (no re-encoding)
+            '-i', video_path,  # Input video (index 0)
+            '-i', audio_path,  # Input audio (index 1)
+            '-map', '0:v:0',   # Map video from first input
+            '-map', '1:a:0',   # Map audio from second input (AI narration)
+            '-c:v', 'copy',    # Copy video stream
             '-c:a', 'aac',     # Encode audio as AAC
-            '-b:a', '128k',    # Audio bitrate
-            '-t', str(video_duration),  # Ensure output matches video duration
+            '-b:a', '192k',    # Higher audio bitrate for better quality
+            '-shortest',       # Truncate to the shortest stream (video)
             output_path
         ]
         
@@ -456,3 +457,25 @@ async def generate_video_db_test(
         "filename": video_file.filename,
         "user": current_user.username
     }
+@router.get("/download/{job_id}")
+async def download_video(job_id: int, db: Session = Depends(get_db)):
+    """
+    Download a completed video generation output
+    """
+    from app.models.job import Job
+    job = db.query(Job).filter(Job.id == job_id).first()
+    
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+        
+    if job.status != "COMPLETED" or not job.output_file_path:
+        raise HTTPException(status_code=400, detail="Video not yet completed or generation failed")
+        
+    if not os.path.exists(job.output_file_path):
+        raise HTTPException(status_code=404, detail="File no longer exists on server")
+        
+    return FileResponse(
+        path=job.output_file_path,
+        filename=os.path.basename(job.output_file_path),
+        media_type="video/mp4"
+    )

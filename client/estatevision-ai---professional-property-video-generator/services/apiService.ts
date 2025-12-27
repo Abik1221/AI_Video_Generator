@@ -5,10 +5,16 @@ import { SystemLog, SystemStats } from '../types';
 const API_BASE_URL = process.env.VITE_API_URL || 'http://localhost:8000';
 
 // Create axios instance
-const apiClient = axios.create({
+export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000, // 30 seconds timeout
 });
+
+// Initialize token from localStorage if present
+const token = localStorage.getItem('access_token');
+if (token) {
+  apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+}
 
 // Define TypeScript interfaces matching our backend
 export interface Job {
@@ -97,6 +103,9 @@ export interface ChangePasswordRequest {
 
 // API service functions
 export const apiService = {
+  // Get the base URL
+  getBaseUrl: () => API_BASE_URL,
+
   // Authentication methods
   login: async (username: string, password: string): Promise<UserLoginResponse> => {
     const params = new URLSearchParams();
@@ -145,12 +154,14 @@ export const apiService = {
   submitVideoGeneration: async (
     videoFile: File,
     descriptionText: string,
-    targetLanguage: string
+    targetLanguage: string,
+    resolution: string = '720p'
   ): Promise<{ id: number; status: string; progress: number }> => {
     const formData = new FormData();
     formData.append('video_file', videoFile);
     formData.append('description_text', descriptionText);
     formData.append('target_language', targetLanguage);
+    formData.append('resolution', resolution);
 
     const response = await apiClient.post('/api/v1/generate', formData, {
       headers: {

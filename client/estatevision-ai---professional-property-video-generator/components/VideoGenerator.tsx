@@ -1,8 +1,8 @@
 import React, { useState, useRef } from 'react';
-import { 
-  Upload, 
-  FileText, 
-  Languages, 
+import {
+  Upload,
+  FileText,
+  Languages,
   Sparkles,
   CheckCircle2,
   AlertCircle,
@@ -23,10 +23,11 @@ const VideoGenerator: React.FC<{ onComplete: (video: any) => void }> = ({ onComp
   const [status, setStatus] = useState<GenerationStatus>(GenerationStatus.IDLE);
   const [description, setDescription] = useState('');
   const [language, setLanguage] = useState('en');
+  const [resolution, setResolution] = useState('720p');
   const [selectedVideo, setSelectedVideo] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  
+
   const [generatedResult, setGeneratedResult] = useState<{
     id: string;
     title: string;
@@ -48,10 +49,10 @@ const VideoGenerator: React.FC<{ onComplete: (video: any) => void }> = ({ onComp
         setError('File size exceeds 100MB limit');
         return;
       }
-      
+
       setSelectedVideo(file);
       setError(null); // Clear any previous errors
-      
+
       // Create preview URL (only for video files)
       try {
         const url = URL.createObjectURL(file);
@@ -66,26 +67,27 @@ const VideoGenerator: React.FC<{ onComplete: (video: any) => void }> = ({ onComp
   const handleGenerate = async () => {
     if (!selectedVideo) return setError('Please select a video file.');
     if (!description.trim()) return setError('Please provide a property description.');
-    
+
     setError(null);
     setStatus(GenerationStatus.SCRIPTING);
-    
+
     try {
       // Submit the video generation job to backend
       const result = await apiService.submitVideoGeneration(
         selectedVideo,
         description,
-        language
+        language,
+        resolution
       );
-      
+
       setStatus(GenerationStatus.VOICEOVER);
-      
+
       // Poll for job status until completion
       let currentStatus = await apiService.getJobStatus(result.id);
       while (currentStatus.status !== 'COMPLETED' && currentStatus.status !== 'FAILED') {
         await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds between polls
         currentStatus = await apiService.getJobStatus(result.id);
-        
+
         // Update status based on progress
         if (currentStatus.progress < 30) {
           setStatus(GenerationStatus.SCRIPTING);
@@ -95,22 +97,21 @@ const VideoGenerator: React.FC<{ onComplete: (video: any) => void }> = ({ onComp
           setStatus(GenerationStatus.VIDEO_GEN);
         }
       }
-      
+
       if (currentStatus.status === 'COMPLETED') {
         setStatus(GenerationStatus.COMPLETED);
-        
-        // Create result object
+
         const newVideo = {
           id: result.id.toString(),
           title: `Generated Video #${result.id}`,
           description,
-          videoUrl: currentStatus.output_file_path || `/api/v1/download/${result.id}`, // Use download endpoint if no direct path
+          videoUrl: `${apiService.getBaseUrl()}/api/v1/download/${result.id}`,
           thumbnailUrl: previewUrl || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&q=80&w=400',
           status: GenerationStatus.COMPLETED,
           createdAt: new Date(),
           language
         };
-        
+
         setGeneratedResult(newVideo);
         onComplete(newVideo);
       } else {
@@ -150,8 +151,8 @@ const VideoGenerator: React.FC<{ onComplete: (video: any) => void }> = ({ onComp
                 <Upload size={20} />
                 <h3 className="text-sm font-black uppercase tracking-widest">Property Video Upload</h3>
               </div>
-              
-              <div 
+
+              <div
                 onClick={() => fileInputRef.current?.click()}
                 className="group relative h-48 border border-zinc-200 border-dashed flex flex-col items-center justify-center cursor-pointer hover:bg-zinc-50 transition-all overflow-hidden"
               >
@@ -175,14 +176,14 @@ const VideoGenerator: React.FC<{ onComplete: (video: any) => void }> = ({ onComp
                     <p className="text-[8px] text-zinc-500 mt-1">Any video file up to 100MB</p>
                   </>
                 )}
-                <input 
-                  type="file" 
-                  ref={fileInputRef} 
-                  onChange={handleFileChange} 
-                  className="hidden" 
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  className="hidden"
                 />
               </div>
-              
+
               {selectedVideo && (
                 <div className="mt-3 text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
                   Selected: {selectedVideo.name} ({(selectedVideo.size / (1024 * 1024)).toFixed(2)} MB)
@@ -215,7 +216,7 @@ const VideoGenerator: React.FC<{ onComplete: (video: any) => void }> = ({ onComp
                 <Languages size={20} />
                 <h3 className="text-sm font-black uppercase tracking-widest">Synthesis Parameters</h3>
               </div>
-              
+
               <div className="space-y-8">
                 <div>
                   <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-3 block">Output Language</label>
@@ -224,11 +225,10 @@ const VideoGenerator: React.FC<{ onComplete: (video: any) => void }> = ({ onComp
                       <button
                         key={lang.id}
                         onClick={() => setLanguage(lang.id)}
-                        className={`px-3 py-3 border text-[10px] font-black tracking-widest uppercase transition-all ${
-                          language === lang.id 
-                            ? 'bg-black border-black text-white' 
-                            : 'bg-white border-zinc-200 text-zinc-400 hover:border-black'
-                        }`}
+                        className={`px-3 py-3 border text-[10px] font-black tracking-widest uppercase transition-all ${language === lang.id
+                          ? 'bg-black border-black text-white'
+                          : 'bg-white border-zinc-200 text-zinc-400 hover:border-black'
+                          }`}
                       >
                         {lang.label}
                       </button>
@@ -239,8 +239,20 @@ const VideoGenerator: React.FC<{ onComplete: (video: any) => void }> = ({ onComp
                 <div>
                   <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-3 block">Video Resolution</label>
                   <div className="flex border border-zinc-100 p-1">
-                    <button className="flex-1 py-2 bg-black text-white text-[10px] font-black uppercase tracking-widest">720p Std</button>
-                    <button className="flex-1 py-2 bg-white text-zinc-300 text-[10px] font-black uppercase tracking-widest cursor-not-allowed">1080p HQ</button>
+                    <button
+                      onClick={() => setResolution('720p')}
+                      className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${resolution === '720p' ? 'bg-black text-white' : 'bg-white text-zinc-400 hover:text-black'
+                        }`}
+                    >
+                      720p Std
+                    </button>
+                    <button
+                      onClick={() => setResolution('1080p')}
+                      className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${resolution === '1080p' ? 'bg-black text-white' : 'bg-white text-zinc-400 hover:text-black'
+                        }`}
+                    >
+                      1080p HQ
+                    </button>
                   </div>
                 </div>
               </div>
@@ -253,12 +265,11 @@ const VideoGenerator: React.FC<{ onComplete: (video: any) => void }> = ({ onComp
               </div>
             )}
 
-            <button 
+            <button
               onClick={handleGenerate}
               disabled={!selectedVideo || !description.trim() || isProcessing}
-              className={`w-full bg-black text-white py-6 font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:invert transition-all border border-black ${
-                (!selectedVideo || !description.trim() || isProcessing) ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
+              className={`w-full bg-black text-white py-6 font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:invert transition-all border border-black ${(!selectedVideo || !description.trim() || isProcessing) ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
             >
               Start Synthesis <ArrowRight size={18} />
             </button>
@@ -282,16 +293,16 @@ const VideoGenerator: React.FC<{ onComplete: (video: any) => void }> = ({ onComp
           </h2>
           <div className="flex flex-col items-center gap-6 max-w-sm w-full px-8 font-mono">
             <div className="w-full bg-zinc-100 h-1 border border-zinc-200">
-              <div 
-                className="h-full bg-black transition-all duration-1000" 
-                style={{ 
-                  width: status === GenerationStatus.SCRIPTING ? '25%' : 
-                         status === GenerationStatus.VOICEOVER ? '55%' : '85%' 
-                }} 
+              <div
+                className="h-full bg-black transition-all duration-1000"
+                style={{
+                  width: status === GenerationStatus.SCRIPTING ? '25%' :
+                    status === GenerationStatus.VOICEOVER ? '55%' : '85%'
+                }}
               />
             </div>
             <p className="text-zinc-400 text-center text-[10px] uppercase tracking-widest leading-loose">
-              Processing your video... <br/>
+              Processing your video... <br />
               Synthesizing output for <span className="text-black">{language}</span>...
             </p>
           </div>
@@ -305,12 +316,12 @@ const VideoGenerator: React.FC<{ onComplete: (video: any) => void }> = ({ onComp
                 {status === GenerationStatus.COMPLETED ? 'Synthesis Successful' : 'Generation Failed'}
               </h2>
               <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest">
-                {status === GenerationStatus.COMPLETED 
-                  ? 'Your property video with narration has been generated.' 
+                {status === GenerationStatus.COMPLETED
+                  ? 'Your property video with narration has been generated.'
                   : 'There was an issue generating your video.'}
               </p>
             </div>
-            <button 
+            <button
               onClick={handleReset}
               className="px-8 py-3 bg-black text-white font-black text-xs uppercase tracking-widest border border-black hover:bg-white hover:text-black transition-all"
             >
@@ -322,16 +333,16 @@ const VideoGenerator: React.FC<{ onComplete: (video: any) => void }> = ({ onComp
             <div className="space-y-6">
               <div className="aspect-video bg-zinc-900 border border-black overflow-hidden relative shadow-inner">
                 {generatedResult?.videoUrl ? (
-                  <video 
-                    src={generatedResult.videoUrl} 
-                    controls 
+                  <video
+                    src={generatedResult.videoUrl}
+                    controls
                     className="w-full h-full object-cover"
                     poster={previewUrl || undefined}
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-zinc-700 text-[10px] font-black uppercase tracking-widest">
-                    {status === GenerationStatus.COMPLETED 
-                      ? 'Video Processing...' 
+                    {status === GenerationStatus.COMPLETED
+                      ? 'Video Processing...'
                       : 'Preview Unavailable'}
                   </div>
                 )}
@@ -349,15 +360,15 @@ const VideoGenerator: React.FC<{ onComplete: (video: any) => void }> = ({ onComp
 
               <div className="flex items-center gap-4">
                 {generatedResult?.videoUrl && (
-                  <a 
-                    href={generatedResult.videoUrl} 
+                  <a
+                    href={generatedResult.videoUrl}
                     download
                     className="flex-1 bg-black text-white py-4 font-black uppercase tracking-widest text-[10px] hover:invert transition-all text-center"
                   >
                     Download Video (MP4)
                   </a>
                 )}
-                <button 
+                <button
                   onClick={handleReset}
                   className="flex-1 bg-white text-black border border-black py-4 font-black uppercase tracking-widest text-[10px] hover:bg-zinc-50 transition-all"
                 >

@@ -5,6 +5,7 @@ from app.config import settings
 from typing import Optional
 import tempfile
 import subprocess
+from loguru import logger
 
 class SimpleTTSService:
     """
@@ -77,23 +78,23 @@ class SimpleTTSService:
         try:
             return self._generate_gtts(translated_text, language_code)
         except Exception as e:
-            print(f"Google TTS failed: {e}")
+            logger.warning(f"Google TTS failed: {e}")
         
         # Method 2: Try OpenAI TTS if API key is available
         if settings.openai_api_key and settings.openai_api_key != "your_openai_api_key_here":
             try:
                 return self._generate_openai_tts(translated_text)
             except Exception as e:
-                print(f"OpenAI TTS failed: {e}")
+                logger.warning(f"OpenAI TTS failed: {e}")
         
         # Method 3: Try pyttsx3 (offline TTS)
         try:
             return self._generate_pyttsx3_tts(translated_text)
         except Exception as e:
-            print(f"Pyttsx3 TTS failed: {e}")
+            logger.warning(f"Pyttsx3 TTS failed: {e}")
         
         # Fallback: Create a longer silent audio with text info
-        print("All TTS methods failed, creating extended silent audio")
+        logger.error("All TTS methods failed! Creating silent audio fallback.")
         return self._create_text_based_audio(translated_text)
     
     def _generate_gtts(self, text: str, language_code: str = "en") -> bytes:
@@ -183,6 +184,7 @@ class SimpleTTSService:
             raise Exception(f"Pyttsx3 failed: {str(e)}")
         
         raise Exception("Pyttsx3 produced no audio")
+    def _generate_openai_tts(self, text: str) -> bytes:
         """Generate TTS using OpenAI API"""
         import openai
         
