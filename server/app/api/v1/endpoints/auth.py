@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Form
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import func
-from datetime import timedelta
+from datetime import timedelta, datetime, timezone
 from typing import Optional, List
 from app.database import get_db
 from app.services.auth_service import auth_service
@@ -19,6 +19,30 @@ from app.schemas.auth import (
 router = APIRouter()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+
+
+def refresh_user_credits(db: Session, user: User):
+    """Refresh user credits if it's a new day"""
+    now = datetime.now(timezone.utc)
+    
+    # If last_credits_refresh is None or it was before today (UTC)
+    should_refresh = False
+    if user.last_credits_refresh is None:
+        should_refresh = True
+    else:
+        # Check if last refresh was on a previous day
+        last_refresh = user.last_credits_refresh
+        if last_refresh.tzinfo is None:
+            last_refresh = last_refresh.replace(tzinfo=timezone.utc)
+        
+        if last_refresh.date() < now.date():
+            should_refresh = True
+            
+    if should_refresh:
+        user.credits = 1000
+        user.last_credits_refresh = now
+        db.commit()
+        db.refresh(user)
 
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
@@ -46,6 +70,9 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
             detail="User not found",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    
+    # Refresh credits if needed
+    refresh_user_credits(db, user)
     
     return user
 

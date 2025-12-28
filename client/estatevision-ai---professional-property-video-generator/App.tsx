@@ -115,7 +115,7 @@ const App: React.FC = () => {
     if (user) {
       setUser({
         ...user,
-        credits: user.credits - 5
+        credits: user.credits - 200
       });
     }
   };

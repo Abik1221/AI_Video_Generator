@@ -51,6 +51,14 @@ async def generate_video(
     """
     logger.info(f"Received video generation request from user {current_user.username}")
     
+    # Check if user has enough credits (200 credits per video)
+    if current_user.credits < 200:
+        logger.warning(f"User {current_user.username} has insufficient credits: {current_user.credits}")
+        raise HTTPException(
+            status_code=403,
+            detail=f"Insufficient credits. You need 200 credits to generate a video, but you have {current_user.credits}."
+        )
+    
     # Basic validation
     if len(description_text) > settings.max_description_length:
         raise HTTPException(
@@ -96,7 +104,7 @@ async def generate_video(
         
         # Start the video processing in the background
         import asyncio
-        asyncio.create_task(process_video_with_narration(job.id, video_path, description_text, target_language))
+        asyncio.create_task(process_video_with_narration(job.id, video_path, description_text, target_language, current_user.id))
         
         return {
             "id": job.id,
@@ -112,7 +120,7 @@ async def generate_video(
         raise HTTPException(status_code=500, detail="Error creating video generation job")
 
 
-async def process_video_with_narration(job_id: int, video_path: str, description_text: str, target_language: str):
+async def process_video_with_narration(job_id: int, video_path: str, description_text: str, target_language: str, user_id: int):
     """
     Process video with AI narration in the background
     """
@@ -226,9 +234,16 @@ async def process_video_with_narration(job_id: int, video_path: str, description
             job.progress = 100
             job.output_file_path = output_path
             
+            # Deduct credits from user
+            user = db.query(User).filter(User.id == user_id).first()
+            if user:
+                user.credits -= 200
+                db.commit()
+                logger.info(f"Deducted 200 credits from user {user.username}. Remaining: {user.credits}")
+            
             # Record job completion log
             from app.services.logging_service import logging_service
-            logging_service.log(db, f"Job #{job_id} processing completed successfully", level="SUCCESS", module="JOBS")
+            logging_service.log(db, f"Job #{job_id} processing completed successfully. 200 credits deducted.", level="SUCCESS", module="JOBS")
 
             logger.info(f"Successfully completed video processing for job {job_id}")
         else:

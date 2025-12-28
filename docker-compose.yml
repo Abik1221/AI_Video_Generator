@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./server/uploads:/app/uploads
+      - ./server/outputs:/app/outputs
+      - ./server/temp:/app/temp
+      - ./server/logs:/app/logs
+      - ./server/estatevision_ai.db:/app/estatevision_ai.db
+    env_file:
+      - ./server/.env
+    restart: always
+
+  frontend:
+    build:
+      context: ./client/estatevision-ai---professional-property-video-generator
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: always
+
+volumes:
+  uploads:
+  outputs:
+  temp:
+  logs:
