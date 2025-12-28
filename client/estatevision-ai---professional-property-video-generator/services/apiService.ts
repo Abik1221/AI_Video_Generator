@@ -155,13 +155,15 @@ export const apiService = {
     videoFile: File,
     descriptionText: string,
     targetLanguage: string,
-    resolution: string = '720p'
+    resolution: string = '720p',
+    includeTTS: boolean = true
   ): Promise<{ id: number; status: string; progress: number }> => {
     const formData = new FormData();
     formData.append('video_file', videoFile);
     formData.append('description_text', descriptionText);
     formData.append('target_language', targetLanguage);
     formData.append('resolution', resolution);
+    formData.append('include_tts', includeTTS.toString());
 
     const response = await apiClient.post('/api/v1/generate', formData, {
       headers: {

@@ -1,0 +1,13 @@
+Imports success
+Database session opened
+Set enable_tts to true (type: boolean)
+Set default_tts_voice to nova (type: string)
+Set tts_speed to 1.0 (type: string)
+Set enable_tts_fallback to true (type: boolean)
+Set tts_fallback_service to google (type: string)
+Set max_video_size_mb to 100 (type: integer)
+Set max_description_length to 5000 (type: integer)
+Set video_processing_quality to 720p (type: string)
+Set enable_background_processing to true (type: boolean)
+Set max_concurrent_jobs to 5 (type: integer)
+Initialization complete. Committed to DB.

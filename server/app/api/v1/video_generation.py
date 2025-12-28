@@ -43,6 +43,7 @@ async def generate_video(
     target_language: str = Form(...),
     video_file: UploadFile = File(...),
     resolution: str = Form("720p"),
+    include_tts: Optional[str] = Form("true"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -104,7 +105,8 @@ async def generate_video(
         
         # Start the video processing in the background
         import asyncio
-        asyncio.create_task(process_video_with_narration(job.id, video_path, description_text, target_language, current_user.id))
+        include_tts_bool = include_tts.lower() in ("true", "1", "yes", "on")
+        asyncio.create_task(process_video_with_narration(job.id, video_path, description_text, target_language, current_user.id, include_tts_bool))
         
         return {
             "id": job.id,
@@ -120,7 +122,7 @@ async def generate_video(
         raise HTTPException(status_code=500, detail="Error creating video generation job")
 
 
-async def process_video_with_narration(job_id: int, video_path: str, description_text: str, target_language: str, user_id: int):
+async def process_video_with_narration(job_id: int, video_path: str, description_text: str, target_language: str, user_id: int, include_tts_param: Optional[bool] = None):
     """
     Process video with AI narration in the background
     """
@@ -132,7 +134,11 @@ async def process_video_with_narration(job_id: int, video_path: str, description
     
     try:
         # Check if TTS is enabled
-        enable_tts = settings_service.get_setting_value("enable_tts", True)
+        # include_tts_param (from request) takes precedence over system-wide settings
+        if include_tts_param is not None:
+            enable_tts = include_tts_param
+        else:
+            enable_tts = settings_service.get_setting_value("enable_tts", True)
         
         # Update job status to processing
         job = db.query(Job).filter(Job.id == job_id).first()
