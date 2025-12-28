@@ -19,18 +19,19 @@ def seed_admin_user():
     
     try:
         # Check if user already exists
-        existing_user = db.query(User).filter(User.username == "admin").first()
+        target_username = "Metronavix"
+        target_password = "Metronavix123admin"
         
-        default_password = "admin123"
-        hashed_password = auth_service.get_password_hash(default_password)
+        existing_user = db.query(User).filter(User.username == target_username).first()
+        hashed_password = auth_service.get_password_hash(target_password)
         
         if not existing_user:
             # Create admin user
             admin_user = User(
-                username="admin",
+                username=target_username,
                 email="admin@metronavix-internal.com",
                 hashed_password=hashed_password,
-                full_name="System Admin",
+                full_name="Metronavix Admin",
                 is_admin=True,
                 credits=1000
             )
@@ -40,13 +41,13 @@ def seed_admin_user():
             db.refresh(admin_user)
             
             print(f"✓ Admin user created successfully!")
-            print(f"  Username: admin")
-            print(f"  Password: {default_password}")
+            print(f"  Username: {target_username}")
+            print(f"  Password: {target_password}")
         else:
-            print(f"✓ Admin user exists. Resetting password to default...")
+            print(f"✓ Admin user '{target_username}' exists. Updating password...")
             existing_user.hashed_password = hashed_password
             db.commit()
-            print(f"✓ Password reset for 'admin' to: {default_password}")
+            print(f"✓ Password updated for '{target_username}' to: {target_password}")
     
     except Exception as e:
         print(f"✗ Error seeding/resetting admin user: {str(e)}")

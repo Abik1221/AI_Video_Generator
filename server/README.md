@@ -58,7 +58,15 @@ An AI-powered system that generates property videos with audio descriptions in m
    python init_db.py
    ```
 
-6. Run the application:
+6. Seed the admin user:
+   ```bash
+   python seed_user.py
+   ```
+   **Admin Credentials:**
+   - **Username**: `Metronavix`
+   - **Password**: `Metronavix123admin`
+
+7. Run the application:
    ```bash
    uvicorn app.main:app --reload
    ```
