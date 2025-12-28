@@ -21,13 +21,12 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
 
-# Import all models here to ensure they are registered with SQLAlchemy
-from app.models.job import Job, Language, Setting
-from app.models.user import User, UserSession
-from app.models.system import SystemLog
-
 # Create all tables
 def create_all_tables():
+    # Import models here to avoid circular imports
+    from app.models.job import Job, Language, Setting
+    from app.models.user import User, UserSession
+    from app.models.system import SystemLog
     Base.metadata.create_all(bind=engine)
 
 
