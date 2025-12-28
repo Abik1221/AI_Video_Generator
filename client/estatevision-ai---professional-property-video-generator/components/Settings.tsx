@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Settings as SettingsIcon, 
-  Save, 
-  RefreshCw, 
+import {
+  Settings as SettingsIcon,
+  Save,
+  RefreshCw,
   Key,
   Globe,
   Volume2,
@@ -118,6 +118,7 @@ const Settings: React.FC = () => {
       name: 'Text-to-Speech',
       icon: Volume2,
       settings: [
+        { key: 'enable_tts', label: 'Enable TTS by Default', type: 'checkbox' },
         { key: 'enable_tts_fallback', label: 'Enable TTS Fallback', type: 'checkbox' },
         { key: 'tts_fallback_service', label: 'Fallback Service', type: 'select', options: ['google', 'openai'] },
         { key: 'default_tts_voice', label: 'Default Voice', type: 'text' },
@@ -158,7 +159,7 @@ const Settings: React.FC = () => {
   // Render input based on type
   const renderInput = (setting: { key: string; label: string; type: string; options?: string[] }) => {
     const value = settings[setting.key] || '';
-    
+
     switch (setting.type) {
       case 'checkbox':
         return (
@@ -234,9 +235,8 @@ const Settings: React.FC = () => {
           <button
             onClick={handleSave}
             disabled={saving}
-            className={`flex items-center gap-2 px-4 py-2 text-white text-sm font-black uppercase tracking-widest transition-colors ${
-              saving ? 'bg-gray-400 cursor-not-allowed' : 'bg-black hover:bg-zinc-800'
-            }`}
+            className={`flex items-center gap-2 px-4 py-2 text-white text-sm font-black uppercase tracking-widest transition-colors ${saving ? 'bg-gray-400 cursor-not-allowed' : 'bg-black hover:bg-zinc-800'
+              }`}
           >
             {saving ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />}
             {saving ? 'Saving...' : 'Save Settings'}
@@ -263,7 +263,7 @@ const Settings: React.FC = () => {
               <category.icon size={20} />
               <h3 className="text-sm font-black uppercase tracking-widest">{category.name}</h3>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {category.settings.map(setting => (
                 <div key={setting.key} className="space-y-2">

@@ -125,13 +125,15 @@ async def process_video_with_narration(job_id: int, video_path: str, description
     Process video with AI narration in the background
     """
     from app.database import get_db
-    from app.services.simple_tts import TTSManager
-    import tempfile
-    import subprocess
+    from app.services.settings_service import SettingsService
     
     db = next(get_db())
+    settings_service = SettingsService(db)
     
     try:
+        # Check if TTS is enabled
+        enable_tts = settings_service.get_setting_value("enable_tts", True)
+        
         # Update job status to processing
         job = db.query(Job).filter(Job.id == job_id).first()
         if not job:
@@ -143,46 +145,53 @@ async def process_video_with_narration(job_id: int, video_path: str, description
         
         logger.info(f"Starting video processing for job {job_id}")
         
-        # Step 1: Generate audio narration using simple TTS
-        job.status = "GENERATING_AUDIO"
-        job.progress = 30
-        db.commit()
-        
-        logger.info(f"Starting TTS generation for job {job_id}")
-        logger.info(f"Description text: {description_text[:100]}...")
-        logger.info(f"Target language: {target_language}")
-        
-        tts_manager = TTSManager()
-        
-        # Generate audio content
-        audio_content = tts_manager.synthesize_speech(
-            description_text,
-            target_language,
-            "default"
-        )
-        
-        logger.info(f"Generated audio content size: {len(audio_content)} bytes")
-        
-        # Save audio to permanent file for debugging
-        audio_filename = f"narration_{uuid.uuid4()}.wav"
-        audio_path = os.path.join(settings.upload_folder, audio_filename)
-        
-        with open(audio_path, 'wb') as audio_file:
-            audio_file.write(audio_content)
-        
-        logger.info(f"Generated audio narration saved to: {audio_path}")
-        
-        # Get audio duration for logging
-        audio_duration_cmd = [
-            'ffprobe', '-v', 'quiet', '-show_entries', 'format=duration',
-            '-of', 'csv=p=0', audio_path
-        ]
-        audio_duration_result = subprocess.run(audio_duration_cmd, capture_output=True, text=True)
-        if audio_duration_result.returncode == 0:
-            audio_duration = float(audio_duration_result.stdout.strip())
-            logger.info(f"Generated audio duration: {audio_duration} seconds")
+        audio_path = None
+        if enable_tts:
+            # Step 1: Generate audio narration using simple TTS
+            job.status = "GENERATING_AUDIO"
+            job.progress = 30
+            db.commit()
+            
+            logger.info(f"Starting TTS generation for job {job_id}")
+            logger.info(f"Description text: {description_text[:100]}...")
+            logger.info(f"Target language: {target_language}")
+            
+            # Get default voice from settings
+            default_voice = settings_service.get_setting_value("default_tts_voice", "nova")
+            
+            tts_manager = TTSManager()
+            
+            # Generate audio content
+            audio_content = tts_manager.synthesize_speech(
+                description_text,
+                target_language,
+                default_voice
+            )
+            
+            logger.info(f"Generated audio content size: {len(audio_content)} bytes")
+            
+            # Save audio to permanent file for debugging
+            audio_filename = f"narration_{uuid.uuid4()}.wav"
+            audio_path = os.path.join(settings.upload_folder, audio_filename)
+            
+            with open(audio_path, 'wb') as audio_file:
+                audio_file.write(audio_content)
+            
+            logger.info(f"Generated audio narration saved to: {audio_path}")
+            
+            # Get audio duration for logging
+            audio_duration_cmd = [
+                'ffprobe', '-v', 'quiet', '-show_entries', 'format=duration',
+                '-of', 'csv=p=0', audio_path
+            ]
+            audio_duration_result = subprocess.run(audio_duration_cmd, capture_output=True, text=True)
+            if audio_duration_result.returncode == 0:
+                audio_duration = float(audio_duration_result.stdout.strip())
+                logger.info(f"Generated audio duration: {audio_duration} seconds")
+            else:
+                logger.warning("Could not determine audio duration")
         else:
-            logger.warning("Could not determine audio duration")
+            logger.info(f"TTS is disabled via settings. Skipping narration for job {job_id}")
         
         # Step 2: Get video duration first
         job.status = "ANALYZING_VIDEO"
@@ -211,21 +220,33 @@ async def process_video_with_narration(job_id: int, video_path: str, description
         output_filename = f"output_{uuid.uuid4()}.mp4"
         output_path = os.path.join(settings.upload_folder, output_filename)
         
-        # Use ffmpeg to merge narration with video
-        # IMPROVED: Simplified mapping to ensure audio is correctly picked up
-        ffmpeg_cmd = [
-            'ffmpeg', '-y',  # -y to overwrite output file
-            '-i', video_path,  # Input video (index 0)
-            '-i', audio_path,  # Input audio (index 1)
-            '-map', '0:v:0',   # Map video from first input
-            '-map', '1:a:0',   # Map audio from second input (AI narration)
-            '-c:v', 'copy',    # Copy video stream
-            '-c:a', 'aac',     # Encode audio as AAC
-            '-b:a', '192k',    # Higher audio bitrate for better quality
-            '-shortest',       # Truncate to the shortest stream (video)
-            output_path
-        ]
+        if audio_path:
+            # Use ffmpeg to merge narration with video
+            # IMPROVED: Simplified mapping to ensure audio is correctly picked up
+            ffmpeg_cmd = [
+                'ffmpeg', '-y',  # -y to overwrite output file
+                '-i', video_path,  # Input video (index 0)
+                '-i', audio_path,  # Input audio (index 1)
+                '-map', '0:v:0',   # Map video from first input
+                '-map', '1:a:0',   # Map audio from second input (AI narration)
+                '-c:v', 'copy',    # Copy video stream
+                '-c:a', 'aac',     # Encode audio as AAC
+                '-b:a', '192k',    # Higher audio bitrate for better quality
+                '-shortest',       # Truncate to the shortest stream (video)
+                output_path
+            ]
+        else:
+            # If no narration, just copy the original video (or process as needed)
+            # For now, we'll just copy it to the output path to keep things consistent
+            ffmpeg_cmd = [
+                'ffmpeg', '-y',
+                '-i', video_path,
+                '-c', 'copy',
+                output_path
+            ]
         
+        # Run ffmpeg
+        import subprocess
         result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
         
         if result.returncode == 0:

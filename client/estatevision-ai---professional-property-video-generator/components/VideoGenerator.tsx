@@ -25,6 +25,7 @@ const VideoGenerator: React.FC<{ onComplete: (video: any) => void }> = ({ onComp
   const [language, setLanguage] = useState('en');
   const [resolution, setResolution] = useState('720p');
   const [selectedVideo, setSelectedVideo] = useState<File | null>(null);
+  const [includeTTS, setIncludeTTS] = useState(true);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -77,7 +78,8 @@ const VideoGenerator: React.FC<{ onComplete: (video: any) => void }> = ({ onComp
         selectedVideo,
         description,
         language,
-        resolution
+        resolution,
+        includeTTS
       );
 
       setStatus(GenerationStatus.VOICEOVER);
@@ -129,6 +131,7 @@ const VideoGenerator: React.FC<{ onComplete: (video: any) => void }> = ({ onComp
     setStatus(GenerationStatus.IDLE);
     setDescription('');
     setLanguage('en');
+    setIncludeTTS(true);
     setSelectedVideo(null);
     setPreviewUrl(null);
     setGeneratedResult(null);
@@ -218,6 +221,22 @@ const VideoGenerator: React.FC<{ onComplete: (video: any) => void }> = ({ onComp
               </div>
 
               <div className="space-y-8">
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-3 block">Synthesis Features</label>
+                  <label className="flex items-center gap-3 cursor-pointer group">
+                    <div className={`w-10 h-6 border rounded-full relative transition-all duration-300 ${includeTTS ? 'bg-black border-black' : 'bg-white border-zinc-200'}`}>
+                      <div className={`absolute top-1 left-1 w-4 h-4 rounded-full transition-all duration-300 ${includeTTS ? 'translate-x-4 bg-white' : 'translate-x-0 bg-zinc-200'}`} />
+                    </div>
+                    <input
+                      type="checkbox"
+                      className="hidden"
+                      checked={includeTTS}
+                      onChange={(e) => setIncludeTTS(e.target.checked)}
+                    />
+                    <span className="text-[10px] font-black uppercase tracking-widest group-hover:text-black transition-colors">Add AI Narration (TTS)</span>
+                  </label>
+                </div>
+
                 <div>
                   <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-3 block">Output Language</label>
                   <div className="grid grid-cols-2 gap-2">
