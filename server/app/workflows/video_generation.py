@@ -72,45 +72,13 @@ def validate_inputs(state: VideoGenerationState) -> VideoGenerationState:
 
 
 def process_text(state: VideoGenerationState) -> VideoGenerationState:
-    """Process text using translation service if needed"""
-    logger.info("Processing text...")
-    db = state['db_session']
-    
-    # Update job status
-    job = db.query(Job).filter(Job.id == state['job_id']).first()
-    if job:
-        job.status = "PROCESSING_TEXT"
-        job.progress = 15
-        db.commit()
-    
-    try:
-        # If target language is not English, translate the text using Gemini
-        if state['target_language'] != 'en':
-            logger.info(f"Translating text to {state['target_language']} using Gemini...")
-            tts_manager = state['tts_manager']
-            translated_text = tts_manager.translation_service.translate_text(
-                state['description_text'], 
-                state['target_language']
-            )
-            processed_text = translated_text
-            logger.info("Text translation completed successfully")
-        else:
-            # If target language is English, use the original text
-            processed_text = state['description_text']
-            logger.info("Using original text (English target language)")
-        
-        return {
-            **state,
-            "processed_text": processed_text,
-            "progress": 25
-        }
-    except Exception as e:
-        logger.error(f"Error processing text: {str(e)}")
-        return {
-            **state,
-            "error_message": f"Text processing failed: {str(e)}",
-            "progress": 25
-        }
+    """Process text (now handles via TTSManager.synthesize_speech)"""
+    logger.info("Passing through text to TTSManager...")
+    return {
+        **state,
+        "processed_text": state['description_text'],
+        "progress": 25
+    }
 
 
 def generate_audio(state: VideoGenerationState) -> VideoGenerationState:
