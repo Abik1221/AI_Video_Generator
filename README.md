@@ -14,15 +14,13 @@ An AI-powered system that generates property videos with audio descriptions in m
 
 ## Deployment
 
-### Docker
+For detailed deployment instructions, including Docker Compose and cloud platform setups, please refer to the [Deployment Guide](DEPLOYMENT.md).
+
+### Quick Start (Docker)
 Run the entire stack using Docker Compose:
 ```bash
 docker-compose up --build
 ```
-
-### CI/CD
-- **Backend**: Deployed to Railway.
-- **Frontend**: Deployed to Vercel.
 
 ## Quick Start (Local)
 

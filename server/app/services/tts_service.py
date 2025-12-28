@@ -95,6 +95,11 @@ class GoogleGeminiTranslationService:
         language_names = {
             "en": "English",
             "te": "Telugu",
+            "hi": "Hindi",
+            "ta": "Tamil",
+            "kn": "Kannada",
+            "ml": "Malayalam",
+            "mr": "Marathi",
             "es": "Spanish",
             "fr": "French",
             "de": "German",
@@ -104,7 +109,6 @@ class GoogleGeminiTranslationService:
             "ja": "Japanese",
             "ko": "Korean",
             "zh": "Chinese",
-            "hi": "Hindi",
             "ar": "Arabic",
             "bn": "Bengali",
             "pa": "Punjabi"
@@ -167,31 +171,42 @@ class TTSManager:
         self.translation_service = GoogleGeminiTranslationService()
 
     def synthesize_speech(self, text: str, target_language: str, voice_name: str = "nova") -> bytes:
+        """
+        Synthesize speech from text, translating it first if necessary.
+        """
         # First, translate the text if needed using Gemini
+        translated_text = text
         if target_language != "en":
             try:
                 translated_text = self.translation_service.translate_text(text, target_language)
+                print(f"Translated text to {target_language}: {translated_text[:100]}...")
             except Exception as e:
                 # If translation fails, use original text
-                print(f"Translation failed, using original text: {str(e)}")
+                print(f"Translation failed for {target_language}, using original text. Error: {str(e)}")
                 translated_text = text
-        else:
-            translated_text = text
         
-        # Try OpenAI first, then fallback to Google Cloud
+        # Determine service-specific voice
+        # If the voice looks like a Google Cloud voice but we're calling OpenAI, use a default OpenAI voice
+        openai_voice = voice_name
+        if self.openai_service and ("-Standard-" in voice_name or "-Wavenet-" in voice_name):
+            # Fallback to a valid OpenAI voice if a Google voice was passed
+            openai_voice = settings.default_tts_voice or "nova"
+
+        # Try OpenAI first
         if self.openai_service:
             try:
-                return self.openai_service.synthesize_speech(translated_text, target_language, voice_name)
+                return self.openai_service.synthesize_speech(translated_text, target_language, openai_voice)
             except Exception as e:
                 print(f"OpenAI TTS failed: {str(e)}")
         
+        # Fallback to Google Cloud
         if self.google_service:
             try:
                 return self.google_service.synthesize_speech(translated_text, target_language, voice_name)
             except Exception as e:
                 print(f"Google Cloud TTS failed: {str(e)}")
         
-        raise Exception("All TTS services failed")
+        raise Exception(f"All TTS services failed to process language: {target_language}")
 
     def get_supported_languages(self, db: Session) -> list:
         """

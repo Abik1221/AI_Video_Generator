@@ -15,8 +15,14 @@ import { apiService } from '../services/apiService';
 
 const LANGUAGES = [
   { id: 'en', label: 'English', voice: 'nova' },
+  { id: 'hi', label: 'Hindi', voice: 'alloy' },
   { id: 'te', label: 'Telugu', voice: 'onyx' },
-  // Add more languages as needed
+  { id: 'ta', label: 'Tamil', voice: 'shimmer' },
+  { id: 'kn', label: 'Kannada', voice: 'echo' },
+  { id: 'ml', label: 'Malayalam', voice: 'fable' },
+  { id: 'mr', label: 'Marathi', voice: 'nova' },
+  { id: 'es', label: 'Spanish', voice: 'echo' },
+  { id: 'fr', label: 'French', voice: 'shimmer' },
 ];
 
 const VideoGenerator: React.FC<{ onComplete: (video: any) => void }> = ({ onComplete }) => {
