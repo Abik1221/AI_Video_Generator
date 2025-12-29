@@ -30,7 +30,7 @@ RUN mkdir -p uploads outputs temp logs
 # Make the startup script executable
 RUN chmod +x startup.sh
 
-# Expose the port the app runs on
+# Expose the port the app runs on (Render will set PORT environment variable)
 EXPOSE 8000
 
 # Run the startup script
