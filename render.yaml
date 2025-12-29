@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: estatevision-ai-backend
+    runtime: python
+    region: oregon
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_PATH
+        value: .
+      - key: DATABASE_URL
+        fromDatabase:
+          name: estatevision-ai-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: GOOGLE_GEMINI_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: CORS_ORIGINS
+        value: '["https://estatevision-ai-frontend.onrender.com", "https://estatevision-ai-backend.onrender.com"]'
+databases:
+  - name: estatevision-ai-db
+    region: oregon
+    plan: free

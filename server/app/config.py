@@ -21,7 +21,23 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 30
     
     # CORS settings
-    cors_origins: List[str] = ["*"]  # Change in production
+    cors_origins_raw: Optional[str] = None
+    cors_origins: List[str] = []
+    
+    @field_validator('cors_origins', mode='before')
+    def assemble_cors_origins(cls, v, values):
+        """Build CORS origins from environment variable or use defaults"""
+        if isinstance(values, dict) and values.get('cors_origins_raw'):
+            # Parse from environment variable
+            cors_origins_raw = values.get('cors_origins_raw')
+            if cors_origins_raw.startswith('[') and cors_origins_raw.endswith(']'):
+                try:
+                    return json.loads(cors_origins_raw)
+                except json.JSONDecodeError:
+                    pass
+            return [i.strip() for i in cors_origins_raw.split(",") if i.strip()]
+        # Default CORS origins
+        return ["http://localhost:3000", "http://localhost:5173", "http://localhost:8000", "https://*.onrender.com"]  # Update for production deployment
     
     # TTS settings
     default_tts_voice: str = "nova"

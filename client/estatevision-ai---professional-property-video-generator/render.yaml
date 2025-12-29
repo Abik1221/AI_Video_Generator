@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: estatevision-ai-frontend
+    runtime: static
+    buildCommand: |
+      cd /opt/render/project/src/client/estatevision-ai---professional-property-video-generator &&
+      npm install &&
+      npm run build
+    staticPublishPath: ./dist
+    autoDeploy: true
+    envVars:
+      - key: VITE_API_URL
+        value: https://estatevision-ai-backend.onrender.com  # Update to your actual backend URL after backend is deployed
+      - key: GEMINI_API_KEY
+        sync: false
