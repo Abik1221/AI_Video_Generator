@@ -19,7 +19,17 @@ from app.services.job_service import JobTracker
 from app.api.v1.endpoints.auth import get_current_user
 from app.models.user import User
 from loguru import logger
+from app.services.simple_tts import TTSManager
 import logging
+import datetime
+
+def log_debug(msg):
+    try:
+        with open("server_debug.log", "a") as f:
+            timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            f.write(f"[{timestamp}] {msg}\n")
+    except Exception:
+        pass
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -40,7 +50,7 @@ def save_upload_file(upload_file: UploadFile, destination: str) -> str:
 @router.post("/generate")
 async def generate_video(
     description_text: str = Form(...),
-    target_language: str = Form(...),
+    target_language: str = Form("en"),
     video_file: UploadFile = File(...),
     resolution: str = Form("720p"),
     include_tts: Optional[str] = Form("true"),
@@ -168,11 +178,13 @@ async def process_video_with_narration(job_id: int, video_path: str, description
             tts_manager = TTSManager()
             
             # Generate audio content
+            log_debug(f"Calling TTSManager for text length: {len(description_text)}")
             audio_content = tts_manager.synthesize_speech(
                 description_text,
                 target_language,
                 default_voice
             )
+            log_debug(f"TTSManager returned audio size: {len(audio_content)}")
             
             logger.info(f"Generated audio content size: {len(audio_content)} bytes")
             
@@ -252,8 +264,11 @@ async def process_video_with_narration(job_id: int, video_path: str, description
             ]
         
         # Run ffmpeg
-        import subprocess
+        log_debug(f"Running ffmpeg command: {' '.join(ffmpeg_cmd)}")
         result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
+        log_debug(f"FFmpeg return code: {result.returncode}")
+        if result.stderr:
+            log_debug(f"FFmpeg stderr: {result.stderr}")
         
         if result.returncode == 0:
             # Success

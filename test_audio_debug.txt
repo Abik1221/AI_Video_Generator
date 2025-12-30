@@ -1,0 +1,7 @@
+Starting test...
+Import successful
+Initializing SimpleTTSService...
+Synthesizing speech for: 'This is a test of the automatic narration system.'
+Audio content length: 141000 bytes
+SUCCESS: Audio content generated.
+Saved audio to test_audio_output.wav
