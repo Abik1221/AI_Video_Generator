@@ -33,6 +33,8 @@ class VideoProcessingService:
     async def merge_audio_video(self, video_path: str, audio_path: str, output_path: str) -> str:
         """
         Merge audio and video files using FFmpeg
+        This version ensures that both streams are the same duration by using the video duration
+        as the reference and extending the output to match it.
         """
         try:
             # Create temporary file for output to avoid conflicts
@@ -43,7 +45,11 @@ class VideoProcessingService:
             )
             temp_output.close()
             
+            # Get video duration to use as reference
+            video_duration = await self.extract_video_duration(video_path)
+            
             # FFmpeg command to merge audio and video
+            # Instead of using -shortest, we'll set the duration explicitly
             cmd = [
                 'ffmpeg',
                 '-i', video_path,      # Input video
@@ -51,12 +57,13 @@ class VideoProcessingService:
                 '-c:v', 'copy',        # Copy video codec (preserve quality)
                 '-c:a', 'aac',         # Audio codec
                 '-strict', 'experimental',
-                '-shortest',           # Use the shortest input (match durations)
+                '-t', str(video_duration),  # Set output duration to match video
                 '-y',                  # Overwrite output file
                 temp_output.name       # Output file
             ]
             
             logger.info(f"Merging audio: {audio_path} with video: {video_path}")
+            logger.info(f"Video duration: {video_duration}s")
             logger.info(f"FFmpeg command: {' '.join(cmd)}")
             
             # Run FFmpeg command asynchronously
@@ -166,6 +173,8 @@ class VideoProcessingService:
                 shutil.copy2(audio_path, output_path)
                 return output_path
             
+            logger.info(f"Video duration: {video_duration}s, Audio duration: {audio_duration}s")
+            
             # Adjust audio to match video duration
             if audio_duration > video_duration:
                 # Trim audio to video duration
@@ -176,8 +185,58 @@ class VideoProcessingService:
                     '-y',
                     output_path
                 ]
+                logger.info(f"Trimming audio from {audio_duration}s to {video_duration}s")
             else:
                 # Loop or pad audio to match video duration
+                # Use a combination of apad and atempo for better quality
+                cmd = [
+                    'ffmpeg',
+                    '-i', audio_path,
+                    '-af', f'apad=pad_len={int(video_duration * 48000)}',  # pad_len expects samples, assuming 48kHz
+                    '-y',
+                    output_path
+                ]
+                
+                # Alternative approach: first try to loop the audio
+                try:
+                    # Calculate how many times to loop
+                    loop_times = int(video_duration / audio_duration) + 1
+                    if loop_times > 1:
+                        # Create a command that loops the audio
+                        temp_looped = output_path.replace('.mp3', '_looped.mp3')
+                        loop_cmd = [
+                            'ffmpeg',
+                            '-stream_loop', str(loop_times - 1),  # Loop n-1 times
+                            '-i', audio_path,
+                            '-t', str(video_duration),
+                            '-y',
+                            temp_looped
+                        ]
+                        
+                        logger.info(f"Looping audio to match video duration: {video_duration}s")
+                        
+                        process = await asyncio.create_subprocess_exec(
+                            *loop_cmd,
+                            stdout=asyncio.subprocess.PIPE,
+                            stderr=asyncio.subprocess.PIPE
+                        )
+                        
+                        stdout, stderr = await process.communicate()
+                        
+                        if process.returncode == 0:
+                            # Successfully looped, now move to final output
+                            os.rename(temp_looped, output_path)
+                            logger.info(f"Audio successfully looped and adjusted: {output_path}")
+                            return output_path
+                        else:
+                            logger.warning(f"Looping failed, falling back to padding: {stderr.decode()}")
+                            # Remove temp file if it exists
+                            if os.path.exists(temp_looped):
+                                os.remove(temp_looped)
+                except Exception as loop_error:
+                    logger.warning(f"Looping approach failed, using padding: {loop_error}")
+                    
+                # Fallback: pad with silence
                 cmd = [
                     'ffmpeg',
                     '-i', audio_path,
@@ -185,8 +244,7 @@ class VideoProcessingService:
                     '-y',
                     output_path
                 ]
-            
-            logger.info(f"Adjusting audio duration from {audio_duration}s to {video_duration}s")
+                logger.info(f"Padding audio from {audio_duration}s to {video_duration}s using silence")
             
             process = await asyncio.create_subprocess_exec(
                 *cmd,

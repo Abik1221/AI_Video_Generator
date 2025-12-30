@@ -15,7 +15,7 @@ const MOCK_USER: UserType = {
   email: 'admin@metronavix-internal.com',
   company: 'Metronavix HQ',
   avatar: '', // Custom letter avatar used instead
-  credits: 500,
+  credits: 1200,
 };
 
 const App: React.FC = () => {

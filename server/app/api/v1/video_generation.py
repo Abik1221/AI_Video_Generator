@@ -62,12 +62,12 @@ async def generate_video(
     """
     logger.info(f"Received video generation request from user {current_user.username}")
     
-    # Check if user has enough credits (150 credits per video)
-    if current_user.credits < 150:
+    # Check if user has enough credits (200 credits per video)
+    if current_user.credits < 200:
         logger.warning(f"User {current_user.username} has insufficient credits: {current_user.credits}")
         raise HTTPException(
             status_code=403,
-            detail=f"Insufficient credits. You need 150 credits to generate a video, but you have {current_user.credits}."
+            detail=f"Insufficient credits. You need 200 credits to generate a video, but you have {current_user.credits}."
         )
     
     # Basic validation
@@ -161,6 +161,7 @@ async def process_video_with_narration(job_id: int, video_path: str, description
         
         logger.info(f"Starting video processing for job {job_id}")
         
+        original_audio_path = None  # Keep track of original audio path for cleanup
         audio_path = None
         if enable_tts:
             # Step 1: Generate audio narration using simple TTS
@@ -191,6 +192,7 @@ async def process_video_with_narration(job_id: int, video_path: str, description
             # Save audio to permanent file for debugging
             audio_filename = f"narration_{uuid.uuid4()}.wav"
             audio_path = os.path.join(settings.upload_folder, audio_filename)
+            original_audio_path = audio_path  # Store original path
             
             with open(audio_path, 'wb') as audio_file:
                 audio_file.write(audio_content)
@@ -239,8 +241,56 @@ async def process_video_with_narration(job_id: int, video_path: str, description
         output_path = os.path.join(settings.upload_folder, output_filename)
         
         if audio_path:
-            # Use ffmpeg to merge narration with video
-            # IMPROVED: Simplified mapping to ensure audio is correctly picked up
+            # Get audio duration to compare with video duration
+            audio_duration_cmd = [
+                'ffprobe', '-v', 'quiet', '-show_entries', 'format=duration',
+                '-of', 'csv=p=0', audio_path
+            ]
+            audio_duration_result = subprocess.run(audio_duration_cmd, capture_output=True, text=True)
+            audio_duration = 0
+            if audio_duration_result.returncode == 0:
+                audio_duration = float(audio_duration_result.stdout.strip())
+                logger.info(f"Audio duration: {audio_duration} seconds")
+            
+            # Adjust audio to match video duration before merging
+            adjusted_audio_path = audio_path
+            if audio_duration != video_duration and abs(audio_duration - video_duration) > 0.1:  # If durations are significantly different
+                logger.info(f"Adjusting audio duration from {audio_duration}s to {video_duration}s")
+                
+                # Create adjusted audio file path
+                adjusted_audio_path = audio_path.replace('.wav', '_adjusted.wav')
+                
+                if audio_duration > video_duration:
+                    # Trim audio to video duration
+                    adjust_cmd = [
+                        'ffmpeg',
+                        '-i', audio_path,
+                        '-t', str(video_duration),
+                        '-y',
+                        adjusted_audio_path
+                    ]
+                    logger.info(f"Trimming audio from {audio_duration}s to {video_duration}s")
+                else:
+                    # Pad audio with silence to match video duration
+                    adjust_cmd = [
+                        'ffmpeg',
+                        '-i', audio_path,
+                        '-af', f'apad=pad_dur={video_duration-audio_duration}',
+                        '-y',
+                        adjusted_audio_path
+                    ]
+                    logger.info(f"Padding audio from {audio_duration}s to {video_duration}s")
+                
+                # Run the adjustment command
+                adjust_result = subprocess.run(adjust_cmd, capture_output=True, text=True)
+                if adjust_result.returncode != 0:
+                    logger.warning(f"Audio adjustment failed: {adjust_result.stderr}, using original audio")
+                    adjusted_audio_path = audio_path  # Fall back to original audio
+                else:
+                    # Use the adjusted audio for merging
+                    audio_path = adjusted_audio_path
+            
+            # Use the (potentially adjusted) audio for merging
             ffmpeg_cmd = [
                 'ffmpeg', '-y',  # -y to overwrite output file
                 '-i', video_path,  # Input video (index 0)
@@ -250,7 +300,6 @@ async def process_video_with_narration(job_id: int, video_path: str, description
                 '-c:v', 'copy',    # Copy video stream
                 '-c:a', 'aac',     # Encode audio as AAC
                 '-b:a', '192k',    # Higher audio bitrate for better quality
-                '-shortest',       # Truncate to the shortest stream (video)
                 output_path
             ]
         else:
@@ -279,9 +328,9 @@ async def process_video_with_narration(job_id: int, video_path: str, description
             # Deduct credits from user
             user = db.query(User).filter(User.id == user_id).first()
             if user:
-                user.credits -= 150
+                user.credits -= 200
                 db.commit()
-                logger.info(f"Deducted 150 credits from user {user.username}. Remaining: {user.credits}")
+                logger.info(f"Deducted 200 credits from user {user.username}. Remaining: {user.credits}")
             
             # Record job completion log
             from app.services.logging_service import logging_service
@@ -297,6 +346,12 @@ async def process_video_with_narration(job_id: int, video_path: str, description
         # Don't clean up audio file for debugging
         # if os.path.exists(audio_path):
         #     os.remove(audio_path)
+        # Also clean up any adjusted audio files that were created
+        if audio_path and audio_path != original_audio_path:
+            # If we used an adjusted version, clean it up
+            if os.path.exists(audio_path):
+                logger.info(f"Cleaning up adjusted audio file: {audio_path}")
+                # os.remove(audio_path)  # Uncomment when ready for production
         logger.info(f"Audio file kept for debugging: {audio_path}")
             
     except Exception as e:
