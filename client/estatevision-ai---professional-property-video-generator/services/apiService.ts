@@ -2,7 +2,9 @@ import axios from 'axios';
 import { SystemLog, SystemStats } from '../types';
 
 // Define API base URL
-const API_BASE_URL = process.env.VITE_API_URL || 'http://localhost:8000';
+// Define API base URL
+// If VITE_API_URL is not set, use relative path (current origin)
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 // Create axios instance
 export const apiClient = axios.create({
