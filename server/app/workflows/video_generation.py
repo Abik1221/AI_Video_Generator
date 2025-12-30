@@ -3,7 +3,7 @@ import functools
 from langchain_core.messages import BaseMessage
 from langgraph.graph import StateGraph, END
 from app.services.tts_service import TTSManager
-from app.services.video_service import VideoProcessor
+from app.services.video_service import VideoProcessingService
 from app.models.job import Job
 from sqlalchemy.orm import Session
 import os
@@ -26,7 +26,7 @@ class VideoGenerationState(TypedDict):
     job_id: int
     db_session: Session
     tts_manager: TTSManager
-    video_processor: VideoProcessor
+    video_processor: VideoProcessingService
     error_message: str
     progress: int
 
@@ -335,7 +335,7 @@ class VideoGenerationWorkflow:
     async def run_workflow(self, input_data: dict):
         """Run the video generation workflow with input data"""
         from app.services.tts_service import TTSManager
-        from app.services.video_service import VideoProcessor
+        from app.services.video_service import VideoProcessingService
         from app.database import get_db
         
         # Get database session
@@ -344,7 +344,7 @@ class VideoGenerationWorkflow:
         try:
             # Initialize services
             tts_manager = TTSManager()
-            video_processor = VideoProcessor()
+            video_processor = VideoProcessingService()
             
             # Prepare initial state
             initial_state = VideoGenerationState(
