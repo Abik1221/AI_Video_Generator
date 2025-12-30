@@ -62,12 +62,12 @@ async def generate_video(
     """
     logger.info(f"Received video generation request from user {current_user.username}")
     
-    # Check if user has enough credits (200 credits per video)
-    if current_user.credits < 200:
+    # Check if user has enough credits (150 credits per video)
+    if current_user.credits < 150:
         logger.warning(f"User {current_user.username} has insufficient credits: {current_user.credits}")
         raise HTTPException(
             status_code=403,
-            detail=f"Insufficient credits. You need 200 credits to generate a video, but you have {current_user.credits}."
+            detail=f"Insufficient credits. You need 150 credits to generate a video, but you have {current_user.credits}."
         )
     
     # Basic validation
@@ -279,13 +279,13 @@ async def process_video_with_narration(job_id: int, video_path: str, description
             # Deduct credits from user
             user = db.query(User).filter(User.id == user_id).first()
             if user:
-                user.credits -= 200
+                user.credits -= 150
                 db.commit()
-                logger.info(f"Deducted 200 credits from user {user.username}. Remaining: {user.credits}")
+                logger.info(f"Deducted 150 credits from user {user.username}. Remaining: {user.credits}")
             
             # Record job completion log
             from app.services.logging_service import logging_service
-            logging_service.log(db, f"Job #{job_id} processing completed successfully. 200 credits deducted.", level="SUCCESS", module="JOBS")
+            logging_service.log(db, f"Job #{job_id} processing completed successfully. 150 credits deducted.", level="SUCCESS", module="JOBS")
 
             logger.info(f"Successfully completed video processing for job {job_id}")
         else:

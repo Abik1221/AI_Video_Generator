@@ -1,4 +1,5 @@
 services:
+  # Backend Service
   - type: web
     name: estatevision-ai-backend
     runtime: python
@@ -6,7 +7,7 @@ services:
     plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
-    autoDeploy: true
+    autoDeploy: false
     envVars:
       - key: PYTHON_PATH
         value: .
@@ -20,9 +21,31 @@ services:
         sync: false
       - key: OPENAI_API_KEY
         sync: false
-      - key: CORS_ORIGINS
-        value: '["https://estatevision-ai-frontend.onrender.com", "https://estatevision-ai-backend.onrender.com"]'
+      - key: FRONTEND_URL
+        value: https://estatevision-ai-frontend.onrender.com
+
+  # Frontend Service (Static Site would be cheaper, but Docker is more robust given the Dockerfile)
+  # However, for React + Vite, a Static Site is usually best on Render.
+  # Let's switch to Static Site for cost efficiency on Free Tier if possible.
+  # BUT, the Dockerfile uses Nginx, so 'web' service with Docker runtime is safest.
+  - type: web
+    name: estatevision-ai-frontend
+    runtime: docker
+    region: oregon
+    plan: free
+    dockerContext: client/estatevision-ai---professional-property-video-generator
+    dockerfilePath: client/estatevision-ai---professional-property-video-generator/Dockerfile
+    autoDeploy: false
+    envVars:
+      - key: VITE_API_URL
+        value: https://estatevision-ai-backend.onrender.com
+
 databases:
   - name: estatevision-ai-db
     region: oregon
     plan: free
+    databaseName: estatevision
+    user: estatevision_user
+
+# Allow services to talk to each other
+version: "1"
