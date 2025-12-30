@@ -13,17 +13,8 @@ import {
 import { GenerationStatus } from '../types';
 import { apiService } from '../services/apiService';
 
-const LANGUAGES = [
-  { id: 'en', label: 'English', voice: 'nova' },
-  { id: 'hi', label: 'Hindi', voice: 'alloy' },
-  { id: 'te', label: 'Telugu', voice: 'onyx' },
-  { id: 'ta', label: 'Tamil', voice: 'shimmer' },
-  { id: 'kn', label: 'Kannada', voice: 'echo' },
-  { id: 'ml', label: 'Malayalam', voice: 'fable' },
-  { id: 'mr', label: 'Marathi', voice: 'nova' },
-  { id: 'es', label: 'Spanish', voice: 'echo' },
-  { id: 'fr', label: 'French', voice: 'shimmer' },
-];
+
+// LANGUAGES constant removed as per user request
 
 const VideoGenerator: React.FC<{ onComplete: (video: any) => void }> = ({ onComplete }) => {
   const [status, setStatus] = useState<GenerationStatus>(GenerationStatus.IDLE);
@@ -243,7 +234,8 @@ const VideoGenerator: React.FC<{ onComplete: (video: any) => void }> = ({ onComp
                   </label>
                 </div>
 
-                <div>
+                {/* Language selection removed */
+                /* <div>
                   <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-3 block">Output Language</label>
                   <div className="grid grid-cols-2 gap-2">
                     {LANGUAGES.map((lang) => (
@@ -259,7 +251,7 @@ const VideoGenerator: React.FC<{ onComplete: (video: any) => void }> = ({ onComp
                       </button>
                     ))}
                   </div>
-                </div>
+                </div> */}
 
                 <div>
                   <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-3 block">Video Resolution</label>
@@ -328,7 +320,7 @@ const VideoGenerator: React.FC<{ onComplete: (video: any) => void }> = ({ onComp
             </div>
             <p className="text-zinc-400 text-center text-[10px] uppercase tracking-widest leading-loose">
               Processing your video... <br />
-              Synthesizing output for <span className="text-black">{language}</span>...
+              Synthesizing audio narration...
             </p>
           </div>
         </div>

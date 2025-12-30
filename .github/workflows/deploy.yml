@@ -1,0 +1,33 @@
+name: Deploy to Render
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+
+jobs:
+  deploy:
+    name: Trigger Render Deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy Backend
+        # We use curl to hit the Deploy Hook URL.
+        # Ensure you set RENDER_DEPLOY_HOOK_URL_BACKEND in GitHub Secrets.
+        if: github.ref == 'refs/heads/main'
+        run: |
+          if [ -n "${{ secrets.RENDER_DEPLOY_HOOK_URL_BACKEND }}" ]; then
+            curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL_BACKEND }}"
+          else
+            echo "::warning::Backend Deploy Hook URL not set."
+          fi
+
+      - name: Deploy Frontend
+        # Ensure you set RENDER_DEPLOY_HOOK_URL_FRONTEND in GitHub Secrets.
+        if: github.ref == 'refs/heads/main'
+        run: |
+          if [ -n "${{ secrets.RENDER_DEPLOY_HOOK_URL_FRONTEND }}" ]; then
+            curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL_FRONTEND }}"
+          else
+            echo "::warning::Frontend Deploy Hook URL not set."
+          fi

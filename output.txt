@@ -1,0 +1,15 @@
+/home/nahomkeneni/.local/bin/ngrok
+[Portal Setup] Cleaning up old processes...
+[Portal Setup] Starting Ngrok Tunnels using 'ngrok'...
+[Portal Setup] Waiting 10 seconds for tunnels to initialize...
+[Portal Setup] Error fetching tunnel info: HTTPConnectionPool(host='127.0.0.1', port=4040): Max retries exceeded with url: /api/tunnels (Caused by NewConnectionError("HTTPConnection(host='127.0.0.1', port=4040): Failed to establish a new connection: [Errno 111] Connection refused"))
+[Portal Setup] Dumping ngrok_multi.log:
+ERROR:  authentication failed: Usage of ngrok requires a verified account and authtoken.
+ERROR:  
+ERROR:  Sign up for an account: https://dashboard.ngrok.com/signup
+ERROR:  Install your authtoken: https://dashboard.ngrok.com/get-started/your-authtoken
+ERROR:  
+ERROR:  ERR_NGROK_4018
+ERROR:  https://ngrok.com/docs/errors/err_ngrok_4018
+ERROR:  
+

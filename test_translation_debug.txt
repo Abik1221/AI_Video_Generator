@@ -1,0 +1,66 @@
+Starting translation test...
+[2025-12-30 09:14:35] Loaded .env from /home/nahomkeneni/upwork_projects/chebude_dande/server/.env: True
+[2025-12-30 09:14:35] Import successful
+[2025-12-30 09:14:35] Gemini API Key configured: AIza...DWqo
+[2025-12-30 09:14:35] Initializing SimpleTTSService...
+[2025-12-30 09:14:35] --- Testing Translation (en -> es) ---
+[2025-12-30 09:14:35] Original: Hello, this is a test of the video generation system.
+[2025-12-30 09:14:36] Translated: Hello, this is a test of the video generation system.
+[2025-12-30 09:14:36] WARNING: Text was NOT translated (or translation equals original). Check Gemini API.
+[2025-12-30 09:14:36] --- Testing TTS Generation for es ---
+[2025-12-30 09:14:39] Audio content length: 166134 bytes
+[2025-12-30 09:14:39] SUCCESS: Audio content generated.
+[2025-12-30 09:14:39] Saved audio to test_translation_es.wav
+[2025-12-30 09:14:39] 
+--- tts_debug.log content ---
+[2025-12-30 09:14:39] [2025-12-30 09:06:08] Initializing SimpleTTSService
+[2025-12-30 09:06:08] Generating TTS for: Hello, this is a test of the video generation system....
+[2025-12-30 09:06:08] Attempting gTTS...
+[2025-12-30 09:06:08] Google TTS failed: Failed to connect. Probable cause: Unknown
+[2025-12-30 09:06:08] Attempting pyttsx3...
+[2025-12-30 09:09:33] Initializing SimpleTTSService
+[2025-12-30 09:09:34] Generating TTS for: Hello, this is a test of the video generation system....
+[2025-12-30 09:09:34] Attempting gTTS...
+[2025-12-30 09:09:35] gTTS success. Audio size: 391686
+[2025-12-30 09:11:58] Initializing SimpleTTSService
+[2025-12-30 09:11:59] Generating TTS for: Hello, this is a test of the video generation system....
+[2025-12-30 09:11:59] Attempting gTTS...
+[2025-12-30 09:11:59] Google TTS failed: Failed to connect. Probable cause: Unknown
+[2025-12-30 09:12:01] Attempting pyttsx3...
+[2025-12-30 09:13:41] Initializing SimpleTTSService
+[2025-12-30 09:13:42] Generating TTS for: Hello, this is a test of the video generation system....
+[2025-12-30 09:13:42] Attempting gTTS...
+[2025-12-30 09:13:43] gTTS success. Audio size: 391686
+[2025-12-30 09:14:08] Initializing SimpleTTSService
+[2025-12-30 09:14:09] Generating TTS for: Hello, this is a test of the video generation system....
+[2025-12-30 09:14:09] Attempting gTTS...
+[2025-12-30 09:14:09] Google TTS failed: Failed to connect. Probable cause: Unknown
+[2025-12-30 09:14:11] Attempting pyttsx3...
+[2025-12-30 09:14:35] Initializing SimpleTTSService
+[2025-12-30 09:14:35] Translating to Spanish using Gemini...
+[2025-12-30 09:14:36] Gemini API Response: 404
+[2025-12-30 09:14:36] Gemini Error Body: {
+  "error": {
+    "code": 404,
+    "message": "models/gemini-pro is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.",
+    "status": "NOT_FOUND"
+  }
+}
+
+[2025-12-30 09:14:36] Translation failed: 404
+[2025-12-30 09:14:36] Translating to Spanish using Gemini...
+[2025-12-30 09:14:37] Gemini API Response: 404
+[2025-12-30 09:14:37] Gemini Error Body: {
+  "error": {
+    "code": 404,
+    "message": "models/gemini-pro is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.",
+    "status": "NOT_FOUND"
+  }
+}
+
+[2025-12-30 09:14:37] Translation failed: 404
+[2025-12-30 09:14:37] Generating TTS for: Hello, this is a test of the video generation system....
+[2025-12-30 09:14:37] Attempting gTTS...
+[2025-12-30 09:14:37] Google TTS failed: Failed to connect. Probable cause: Unknown
+[2025-12-30 09:14:39] Attempting pyttsx3...
+

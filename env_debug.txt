@@ -1,0 +1,2 @@
+Checking /home/nahomkeneni/upwork_projects/chebude_dande/server/.env
+Found line: GOOGLE_GEMINI_API_KEY=AIzaSyCVIkbVc2FFJT-I-LMOnBmS9MmSDawDWqo

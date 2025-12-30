@@ -19,7 +19,17 @@ from app.services.job_service import JobTracker
 from app.api.v1.endpoints.auth import get_current_user
 from app.models.user import User
 from loguru import logger
+from app.services.simple_tts import TTSManager
 import logging
+import datetime
+
+def log_debug(msg):
+    try:
+        with open("server_debug.log", "a") as f:
+            timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            f.write(f"[{timestamp}] {msg}\n")
+    except Exception:
+        pass
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -40,7 +50,7 @@ def save_upload_file(upload_file: UploadFile, destination: str) -> str:
 @router.post("/generate")
 async def generate_video(
     description_text: str = Form(...),
-    target_language: str = Form(...),
+    target_language: str = Form("en"),
     video_file: UploadFile = File(...),
     resolution: str = Form("720p"),
     include_tts: Optional[str] = Form("true"),
@@ -52,12 +62,12 @@ async def generate_video(
     """
     logger.info(f"Received video generation request from user {current_user.username}")
     
-    # Check if user has enough credits (200 credits per video)
-    if current_user.credits < 200:
+    # Check if user has enough credits (150 credits per video)
+    if current_user.credits < 150:
         logger.warning(f"User {current_user.username} has insufficient credits: {current_user.credits}")
         raise HTTPException(
             status_code=403,
-            detail=f"Insufficient credits. You need 200 credits to generate a video, but you have {current_user.credits}."
+            detail=f"Insufficient credits. You need 150 credits to generate a video, but you have {current_user.credits}."
         )
     
     # Basic validation
@@ -168,11 +178,13 @@ async def process_video_with_narration(job_id: int, video_path: str, description
             tts_manager = TTSManager()
             
             # Generate audio content
+            log_debug(f"Calling TTSManager for text length: {len(description_text)}")
             audio_content = tts_manager.synthesize_speech(
                 description_text,
                 target_language,
                 default_voice
             )
+            log_debug(f"TTSManager returned audio size: {len(audio_content)}")
             
             logger.info(f"Generated audio content size: {len(audio_content)} bytes")
             
@@ -252,8 +264,11 @@ async def process_video_with_narration(job_id: int, video_path: str, description
             ]
         
         # Run ffmpeg
-        import subprocess
+        log_debug(f"Running ffmpeg command: {' '.join(ffmpeg_cmd)}")
         result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
+        log_debug(f"FFmpeg return code: {result.returncode}")
+        if result.stderr:
+            log_debug(f"FFmpeg stderr: {result.stderr}")
         
         if result.returncode == 0:
             # Success
@@ -264,13 +279,13 @@ async def process_video_with_narration(job_id: int, video_path: str, description
             # Deduct credits from user
             user = db.query(User).filter(User.id == user_id).first()
             if user:
-                user.credits -= 200
+                user.credits -= 150
                 db.commit()
-                logger.info(f"Deducted 200 credits from user {user.username}. Remaining: {user.credits}")
+                logger.info(f"Deducted 150 credits from user {user.username}. Remaining: {user.credits}")
             
             # Record job completion log
             from app.services.logging_service import logging_service
-            logging_service.log(db, f"Job #{job_id} processing completed successfully. 200 credits deducted.", level="SUCCESS", module="JOBS")
+            logging_service.log(db, f"Job #{job_id} processing completed successfully. 150 credits deducted.", level="SUCCESS", module="JOBS")
 
             logger.info(f"Successfully completed video processing for job {job_id}")
         else:

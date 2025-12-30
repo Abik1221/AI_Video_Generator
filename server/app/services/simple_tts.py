@@ -6,6 +6,15 @@ from typing import Optional
 import tempfile
 import subprocess
 from loguru import logger
+import datetime
+
+def log_debug(msg):
+    try:
+        with open("tts_debug.log", "a") as f:
+            timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            f.write(f"[{timestamp}] {msg}\n")
+    except Exception:
+        pass
 
 class SimpleTTSService:
     """
@@ -13,6 +22,7 @@ class SimpleTTSService:
     """
     
     def __init__(self):
+        log_debug("Initializing SimpleTTSService")
         self.api_key = settings.google_gemini_api_key
         self.base_url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent"
     
@@ -42,6 +52,7 @@ class SimpleTTSService:
         }
         
         try:
+            log_debug(f"Translating to {target_lang_name} using Gemini...")
             response = requests.post(
                 f"{self.base_url}?key={self.api_key}",
                 headers=headers,
@@ -49,16 +60,24 @@ class SimpleTTSService:
                 timeout=30
             )
             
+            log_debug(f"Gemini API Response: {response.status_code}")
+            if response.status_code != 200:
+                log_debug(f"Gemini Error Body: {response.text}")
+            
             if response.status_code == 200:
                 result = response.json()
                 if "candidates" in result and len(result["candidates"]) > 0:
-                    return result["candidates"][0]["content"]["parts"][0]["text"].strip()
+                    trans = result["candidates"][0]["content"]["parts"][0]["text"].strip()
+                    log_debug(f"Translation success: {trans[:50]}...")
+                    return trans
             
             print(f"Translation failed: {response.status_code}")
+            log_debug(f"Translation failed: {response.status_code}")
             return text
             
         except Exception as e:
             print(f"Translation error: {str(e)}")
+            log_debug(f"Translation error: {str(e)}")
             return text
     
     def synthesize_speech(self, text: str, language_code: str, voice_name: str) -> bytes:
@@ -70,14 +89,17 @@ class SimpleTTSService:
         else:
             translated_text = text
         
+        log_debug(f"Generating TTS for: {translated_text[:100]}...")
         print(f"Generating TTS for: {translated_text[:100]}...")
         
         # Try different TTS methods in order of preference
         
         # Method 1: Try Google TTS (gTTS) - requires internet
         try:
+            log_debug("Attempting gTTS...")
             return self._generate_gtts(translated_text, language_code)
         except Exception as e:
+            log_debug(f"Google TTS failed: {e}")
             logger.warning(f"Google TTS failed: {e}")
         
         # Method 2: Try OpenAI TTS if API key is available
@@ -89,11 +111,14 @@ class SimpleTTSService:
         
         # Method 3: Try pyttsx3 (offline TTS)
         try:
+            log_debug("Attempting pyttsx3...")
             return self._generate_pyttsx3_tts(translated_text)
         except Exception as e:
+            log_debug(f"Pyttsx3 TTS failed: {e}")
             logger.warning(f"Pyttsx3 TTS failed: {e}")
         
         # Fallback: Create a longer silent audio with text info
+        log_debug("All TTS methods failed! Creating silent audio fallback.")
         logger.error("All TTS methods failed! Creating silent audio fallback.")
         return self._create_text_based_audio(translated_text)
     
@@ -146,6 +171,7 @@ class SimpleTTSService:
                 audio_content = f.read()
             os.unlink(mp3_path)
             os.unlink(wav_path)
+            log_debug(f"gTTS success. Audio size: {len(audio_content)}")
             return audio_content
         
         # Cleanup and raise error
