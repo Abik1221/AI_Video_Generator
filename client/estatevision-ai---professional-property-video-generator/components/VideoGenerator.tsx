@@ -210,31 +210,31 @@ const VideoGenerator: React.FC<{ onComplete: (video: any) => void }> = ({ onComp
             </div>
           </div>
 
-          <div className="lg:col-span-2 space-y-6">
-            <div className="bg-white border border-black p-8">
-              <div className="flex items-center gap-3 mb-8">
-                <Languages size={20} />
-                <h3 className="text-sm font-black uppercase tracking-widest">Synthesis Parameters</h3>
+          iv className="lg:col-span-2 space-y-6">
+          <div className="bg-white border border-black p-8">
+            <div className="flex items-center gap-3 mb-8">
+              <Languages size={20} />
+              <h3 className="text-sm font-black uppercase tracking-widest">Synthesis Parameters</h3>
+            </div>
+
+            <div className="space-y-8">
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-3 block">Synthesis Features</label>
+                <label className="flex items-center gap-3 cursor-pointer group">
+                  <div className={`w-10 h-6 border rounded-full relative transition-all duration-300 ${includeTTS ? 'bg-black border-black' : 'bg-white border-zinc-200'}`}>
+                    <div className={`absolute top-1 left-1 w-4 h-4 rounded-full transition-all duration-300 ${includeTTS ? 'translate-x-4 bg-white' : 'translate-x-0 bg-zinc-200'}`} />
+                  </div>
+                  <input
+                    type="checkbox"
+                    className="hidden"
+                    checked={includeTTS}
+                    onChange={(e) => setIncludeTTS(e.target.checked)}
+                  />
+                  <span className="text-[10px] font-black uppercase tracking-widest group-hover:text-black transition-colors">Add AI Narration (TTS)</span>
+                </label>
               </div>
 
-              <div className="space-y-8">
-                <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-3 block">Synthesis Features</label>
-                  <label className="flex items-center gap-3 cursor-pointer group">
-                    <div className={`w-10 h-6 border rounded-full relative transition-all duration-300 ${includeTTS ? 'bg-black border-black' : 'bg-white border-zinc-200'}`}>
-                      <div className={`absolute top-1 left-1 w-4 h-4 rounded-full transition-all duration-300 ${includeTTS ? 'translate-x-4 bg-white' : 'translate-x-0 bg-zinc-200'}`} />
-                    </div>
-                    <input
-                      type="checkbox"
-                      className="hidden"
-                      checked={includeTTS}
-                      onChange={(e) => setIncludeTTS(e.target.checked)}
-                    />
-                    <span className="text-[10px] font-black uppercase tracking-widest group-hover:text-black transition-colors">Add AI Narration (TTS)</span>
-                  </label>
-                </div>
-
-                {/* Language selection removed */
+              {/* Language selection removed */
                 /* <div>
                   <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-3 block">Output Language</label>
                   <div className="grid grid-cols-2 gap-2">
@@ -253,150 +253,151 @@ const VideoGenerator: React.FC<{ onComplete: (video: any) => void }> = ({ onComp
                   </div>
                 </div> */}
 
-                <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-3 block">Video Resolution</label>
-                  <div className="flex border border-zinc-100 p-1">
-                    <button
-                      onClick={() => setResolution('720p')}
-                      className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${resolution === '720p' ? 'bg-black text-white' : 'bg-white text-zinc-400 hover:text-black'
-                        }`}
-                    >
-                      720p Std
-                    </button>
-                    <button
-                      onClick={() => setResolution('1080p')}
-                      className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${resolution === '1080p' ? 'bg-black text-white' : 'bg-white text-zinc-400 hover:text-black'
-                        }`}
-                    >
-                      1080p HQ
-                    </button>
-                  </div>
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-3 block">Video Resolution</label>
+                <div className="flex border border-zinc-100 p-1">
+                  <button
+                    onClick={() => setResolution('720p')}
+                    className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${resolution === '720p' ? 'bg-black text-white' : 'bg-white text-zinc-400 hover:text-black'
+                      }`}
+                  >
+                    720p Std
+                  </button>
+                  <button
+                    onClick={() => setResolution('1080p')}
+                    className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${resolution === '1080p' ? 'bg-black text-white' : 'bg-white text-zinc-400 hover:text-black'
+                      }`}
+                  >
+                    1080p HQ
+                  </button>
                 </div>
               </div>
             </div>
+          </div>
 
-            {error && (
-              <div className="bg-black text-white p-4 flex items-center gap-3 text-[10px] font-black uppercase tracking-widest border-l-4 border-red-500">
-                <AlertCircle size={14} className="text-red-500" />
-                {error}
+          {error && (
+            <div className="bg-black text-white p-4 flex items-center gap-3 text-[10px] font-black uppercase tracking-widest border-l-4 border-red-500">
+              <AlertCircle size={14} className="text-red-500" />
+              {error}
+            </div>
+          )}
+
+          <button
+            onClick={handleGenerate}
+            disabled={!selectedVideo || !description.trim() || isProcessing}
+            className={`w-full bg-black text-white py-6 font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:invert transition-all border border-black ${(!selectedVideo || !description.trim() || isProcessing) ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+          >
+            Start Synthesis <ArrowRight size={18} />
+          </button>
+          <p className="text-center text-[9px] text-zinc-400 font-bold uppercase tracking-widest mt-4">
+            Operation will take ~120 seconds. Video will be processed on our servers.
+          </p>
+        </div>
+        </div>
+  ) : isProcessing ? (
+    <div className="flex flex-col items-center justify-center py-32 bg-white border border-black shadow-2xl">
+      <div className="relative mb-12">
+        <div className="w-40 h-40 border border-zinc-100 border-t-black rounded-full animate-spin" />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <Monitor size={48} className="animate-pulse" />
+        </div>
+      </div>
+      <h2 className="text-xl font-black uppercase tracking-[0.3em] text-black mb-4">
+        {status === GenerationStatus.SCRIPTING && 'Script Processing'}
+        {status === GenerationStatus.VOICEOVER && 'Audio Generation'}
+        {status === GenerationStatus.VIDEO_GEN && 'Video Merging'}
+      </h2>
+      <div className="flex flex-col items-center gap-6 max-w-sm w-full px-8 font-mono">
+        <div className="w-full bg-zinc-100 h-1 border border-zinc-200">
+          <div
+            className="h-full bg-black transition-all duration-1000"
+            style={{
+              width: status === GenerationStatus.SCRIPTING ? '25%' :
+                status === GenerationStatus.VOICEOVER ? '55%' : '85%'
+            }}
+          />
+        </div>
+        <p className="text-zinc-400 text-center text-[10px] uppercase tracking-widest leading-loose">
+          Processing your video... <br />
+          Synthesizing audio narration...
+        </p>
+      </div>
+    </div>
+  ) : (
+    <div className="bg-white border border-black p-10 space-y-10 animate-fadeIn">
+      <div className="flex items-center justify-between border-b border-zinc-100 pb-8">
+        <div>
+          <h2 className="text-2xl font-black uppercase tracking-tighter mb-2 flex items-center gap-3">
+            <CheckCircle2 size={28} />
+            {status === GenerationStatus.COMPLETED ? 'Synthesis Successful' : 'Generation Failed'}
+          </h2>
+          <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest">
+            {status === GenerationStatus.COMPLETED
+              ? 'Your property video with narration has been generated.'
+              : 'There was an issue generating your video.'}
+          </p>
+        </div>
+        <button
+          onClick={handleReset}
+          className="px-8 py-3 bg-black text-white font-black text-xs uppercase tracking-widest border border-black hover:bg-white hover:text-black transition-all"
+        >
+          New Job
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+        <div className="space-y-6">
+          <div className="aspect-video bg-zinc-900 border border-black overflow-hidden relative shadow-inner">
+            {generatedResult?.videoUrl ? (
+              <video
+                src={generatedResult.videoUrl}
+                controls
+                className="w-full h-full object-cover"
+                poster={previewUrl || undefined}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-zinc-700 text-[10px] font-black uppercase tracking-widest">
+                {status === GenerationStatus.COMPLETED
+                  ? 'Video Processing...'
+                  : 'Preview Unavailable'}
               </div>
             )}
+          </div>
+        </div>
 
-            <button
-              onClick={handleGenerate}
-              disabled={!selectedVideo || !description.trim() || isProcessing}
-              className={`w-full bg-black text-white py-6 font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:invert transition-all border border-black ${(!selectedVideo || !description.trim() || isProcessing) ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
-            >
-              Start Synthesis <ArrowRight size={18} />
-            </button>
-            <p className="text-center text-[9px] text-zinc-400 font-bold uppercase tracking-widest mt-4">
-              Operation will take ~120 seconds. Video will be processed on our servers.
-            </p>
-          </div>
-        </div>
-      ) : isProcessing ? (
-        <div className="flex flex-col items-center justify-center py-32 bg-white border border-black shadow-2xl">
-          <div className="relative mb-12">
-            <div className="w-40 h-40 border border-zinc-100 border-t-black rounded-full animate-spin" />
-            <div className="absolute inset-0 flex items-center justify-center">
-              <Monitor size={48} className="animate-pulse" />
+        <div className="space-y-8">
+          <div className="bg-zinc-50 border border-zinc-100 p-8">
+            <h3 className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-6 border-b border-zinc-200 pb-2 inline-block">Property Details</h3>
+            <h4 className="text-sm font-black uppercase tracking-tight mb-4">Property Description</h4>
+            <div className="max-h-60 overflow-y-auto text-[11px] font-mono text-zinc-600 leading-relaxed pr-4">
+              {description}
             </div>
           </div>
-          <h2 className="text-xl font-black uppercase tracking-[0.3em] text-black mb-4">
-            {status === GenerationStatus.SCRIPTING && 'Script Processing'}
-            {status === GenerationStatus.VOICEOVER && 'Audio Generation'}
-            {status === GenerationStatus.VIDEO_GEN && 'Video Merging'}
-          </h2>
-          <div className="flex flex-col items-center gap-6 max-w-sm w-full px-8 font-mono">
-            <div className="w-full bg-zinc-100 h-1 border border-zinc-200">
-              <div
-                className="h-full bg-black transition-all duration-1000"
-                style={{
-                  width: status === GenerationStatus.SCRIPTING ? '25%' :
-                    status === GenerationStatus.VOICEOVER ? '55%' : '85%'
-                }}
-              />
-            </div>
-            <p className="text-zinc-400 text-center text-[10px] uppercase tracking-widest leading-loose">
-              Processing your video... <br />
-              Synthesizing audio narration...
-            </p>
-          </div>
-        </div>
-      ) : (
-        <div className="bg-white border border-black p-10 space-y-10 animate-fadeIn">
-          <div className="flex items-center justify-between border-b border-zinc-100 pb-8">
-            <div>
-              <h2 className="text-2xl font-black uppercase tracking-tighter mb-2 flex items-center gap-3">
-                <CheckCircle2 size={28} />
-                {status === GenerationStatus.COMPLETED ? 'Synthesis Successful' : 'Generation Failed'}
-              </h2>
-              <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest">
-                {status === GenerationStatus.COMPLETED
-                  ? 'Your property video with narration has been generated.'
-                  : 'There was an issue generating your video.'}
-              </p>
-            </div>
+
+          <div className="flex items-center gap-4">
+            {generatedResult?.videoUrl && (
+              <a
+                href={generatedResult.videoUrl}
+                download
+                className="flex-1 bg-black text-white py-4 font-black uppercase tracking-widest text-[10px] hover:invert transition-all text-center"
+              >
+                Download Video (MP4)
+              </a>
+            )}
             <button
               onClick={handleReset}
-              className="px-8 py-3 bg-black text-white font-black text-xs uppercase tracking-widest border border-black hover:bg-white hover:text-black transition-all"
+              className="flex-1 bg-white text-black border border-black py-4 font-black uppercase tracking-widest text-[10px] hover:bg-zinc-50 transition-all"
             >
               New Job
             </button>
           </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-            <div className="space-y-6">
-              <div className="aspect-video bg-zinc-900 border border-black overflow-hidden relative shadow-inner">
-                {generatedResult?.videoUrl ? (
-                  <video
-                    src={generatedResult.videoUrl}
-                    controls
-                    className="w-full h-full object-cover"
-                    poster={previewUrl || undefined}
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-zinc-700 text-[10px] font-black uppercase tracking-widest">
-                    {status === GenerationStatus.COMPLETED
-                      ? 'Video Processing...'
-                      : 'Preview Unavailable'}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="space-y-8">
-              <div className="bg-zinc-50 border border-zinc-100 p-8">
-                <h3 className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-6 border-b border-zinc-200 pb-2 inline-block">Property Details</h3>
-                <h4 className="text-sm font-black uppercase tracking-tight mb-4">Property Description</h4>
-                <div className="max-h-60 overflow-y-auto text-[11px] font-mono text-zinc-600 leading-relaxed pr-4">
-                  {description}
-                </div>
-              </div>
-
-              <div className="flex items-center gap-4">
-                {generatedResult?.videoUrl && (
-                  <a
-                    href={generatedResult.videoUrl}
-                    download
-                    className="flex-1 bg-black text-white py-4 font-black uppercase tracking-widest text-[10px] hover:invert transition-all text-center"
-                  >
-                    Download Video (MP4)
-                  </a>
-                )}
-                <button
-                  onClick={handleReset}
-                  className="flex-1 bg-white text-black border border-black py-4 font-black uppercase tracking-widest text-[10px] hover:bg-zinc-50 transition-all"
-                >
-                  New Job
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
-      )}
+      </div>
     </div>
+  )
+}
+    </div >
   );
 };
 
