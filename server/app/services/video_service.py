@@ -158,6 +158,26 @@ class VideoProcessingService:
         except Exception as e:
             logger.error(f"Error extracting video duration: {e}")
             raise
+
+    def get_video_duration(self, video_path: str) -> float:
+        """
+        Synchronous version of extract_video_duration (using subprocess.run)
+        """
+        try:
+            cmd = [
+                'ffprobe',
+                '-v', 'quiet',
+                '-show_entries', 'format=duration',
+                '-of', 'csv=p=0',
+                video_path
+            ]
+            result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            if result.returncode != 0:
+                raise RuntimeError(f"ffprobe failed: {result.stderr}")
+            return float(result.stdout.strip())
+        except Exception as e:
+            logger.error(f"Error getting video duration: {e}")
+            raise
     
     async def adjust_audio_to_video_duration(self, audio_path: str, video_path: str, output_path: str) -> str:
         """
@@ -265,6 +285,27 @@ class VideoProcessingService:
         except Exception as e:
             logger.error(f"Error adjusting audio duration: {e}")
             raise
+
+    def adjust_audio_duration(self, audio_path: str, target_duration: float) -> str:
+        """
+        Synchronous wrapper for adjust_audio_to_video_duration or similar logic
+        """
+        output_path = audio_path.replace('.mp3', '_adjusted.mp3').replace('.wav', '_adjusted.wav')
+        try:
+            cmd = [
+                'ffmpeg',
+                '-i', audio_path,
+                '-t', str(target_duration),
+                '-y',
+                output_path
+            ]
+            result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            if result.returncode != 0:
+                raise RuntimeError(f"FFmpeg failed: {result.stderr}")
+            return output_path
+        except Exception as e:
+            logger.error(f"Error adjusting audio duration: {e}")
+            raise
     
     async def validate_video_format(self, video_path: str) -> bool:
         """
@@ -311,6 +352,104 @@ class VideoProcessingService:
         except Exception as e:
             logger.error(f"Error getting video info: {e}")
             raise
+    async def generate_srt(self, text: str, total_duration: float, output_path: str):
+        """
+        Generate a simple SRT file from text, distributing it over the total duration.
+        """
+        try:
+            # Simple chunking: split by sentences or long phrases
+            import re
+            sentences = re.split(r'(?<=[.!?]) +', text)
+            if not sentences or (len(sentences) == 1 and not sentences[0]):
+                sentences = [text]
+
+            # Calculate average duration per character to distribute timing
+            total_chars = sum(len(s) for s in sentences)
+            if total_chars == 0:
+                return
+
+            with open(output_path, 'w', encoding='utf-8') as f:
+                current_time = 0.0
+                for i, sentence in enumerate(sentences):
+                    sentence = sentence.strip()
+                    if not sentence:
+                        continue
+                        
+                    # Estimate duration for this sentence based on character length relative to total
+                    sentence_duration = (len(sentence) / total_chars) * total_duration
+                    
+                    start_time = self._format_srt_time(current_time)
+                    end_time = self._format_srt_time(current_time + sentence_duration)
+                    
+                    f.write(f"{i+1}\n")
+                    f.write(f"{start_time} --> {end_time}\n")
+                    f.write(f"{sentence}\n\n")
+                    
+                    current_time += sentence_duration
+            
+            logger.info(f"SRT file generated: {output_path}")
+        except Exception as e:
+            logger.error(f"Error generating SRT: {e}")
+            raise
+
+    def _format_srt_time(self, seconds: float) -> str:
+        """Format seconds into SRT time format: HH:MM:SS,mmm"""
+        hours = int(seconds // 3600)
+        minutes = int((seconds % 3600) // 60)
+        secs = int(seconds % 60)
+        millis = int((seconds * 1000) % 1000)
+        return f"{hours:02d}:{minutes:02d}:{secs:02d},{millis:03d}"
+
+    async def burn_subtitles(self, video_path: str, srt_path: str, output_path: str) -> str:
+        """
+        Burn subtitles into the video using FFmpeg filter
+        """
+        try:
+            # We need to escape the path for the filter
+            # FFmpeg subtitles filter is very picky about paths
+            abs_srt_path = os.path.abspath(srt_path)
+            # On Linux/macOS, we need to escape colons and backslashes
+            escaped_srt_path = abs_srt_path.replace(':', '\\:').replace('\\', '/')
+            
+            cmd = [
+                'ffmpeg',
+                '-i', video_path,
+                '-vf', f"subtitles='{escaped_srt_path}':force_style='FontSize=24,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=1,Shadow=0,Alignment=2'",
+                '-c:a', 'copy',  # Copy audio as it's already merged
+                '-y',
+                output_path
+            ]
+            
+            logger.info(f"Burning subtitles from {srt_path} into {video_path}")
+            logger.info(f"FFmpeg command: {' '.join(cmd)}")
+            
+            process = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            
+            stdout, stderr = await process.communicate()
+            
+            if process.returncode != 0:
+                error_msg = stderr.decode()
+                logger.error(f"FFmpeg subtitle burning error: {error_msg}")
+                # If subtitles filter fails, we'll just return the original video to not break the workflow
+                # but log it as a warning.
+                logger.warning("Falling back to video without subtitles")
+                import shutil
+                shutil.copy2(video_path, output_path)
+                return output_path
+            
+            logger.info(f"Subtitles successfully burned: {output_path}")
+            return output_path
+            
+        except Exception as e:
+            logger.error(f"Error burning subtitles: {e}")
+            # Fallback
+            import shutil
+            shutil.copy2(video_path, output_path)
+            return output_path
 
 
 import subprocess

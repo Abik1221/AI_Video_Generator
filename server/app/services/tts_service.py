@@ -170,13 +170,26 @@ class TTSManager:
             self.google_service = None
         self.translation_service = GoogleGeminiTranslationService()
 
-    def synthesize_speech(self, text: str, target_language: str, voice_name: str = "nova") -> bytes:
+    def translate_text(self, text: str, target_language: str) -> str:
+        """
+        Translate text using Gemini service.
+        """
+        if target_language == "en":
+            return text
+        try:
+            translated_text = self.translation_service.translate_text(text, target_language)
+            print(f"Translated text to {target_language}: {translated_text[:100]}...")
+            return translated_text
+        except Exception as e:
+            print(f"Translation failed for {target_language}, using original text. Error: {str(e)}")
+            return text
+
+    def synthesize_speech(self, text: str, target_language: str, voice_name: str = "nova", translate: bool = True) -> bytes:
         """
         Synthesize speech from text, translating it first if necessary.
         """
-        # First, translate the text if needed using Gemini
         translated_text = text
-        if target_language != "en":
+        if translate and target_language != "en" and len(text) > 0:
             try:
                 translated_text = self.translation_service.translate_text(text, target_language)
                 print(f"Translated text to {target_language}: {translated_text[:100]}...")

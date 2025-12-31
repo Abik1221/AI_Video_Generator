@@ -22,6 +22,7 @@ class VideoGenerationState(TypedDict):
     target_language: str
     processed_text: str  # Text after translation
     audio_path: str
+    subtitle_path: str
     output_video_path: str
     job_id: int
     db_session: Session
@@ -72,13 +73,26 @@ def validate_inputs(state: VideoGenerationState) -> VideoGenerationState:
 
 
 def process_text(state: VideoGenerationState) -> VideoGenerationState:
-    """Process text (now handles via TTSManager.synthesize_speech)"""
-    logger.info("Passing through text to TTSManager...")
-    return {
-        **state,
-        "processed_text": state['description_text'],
-        "progress": 25
-    }
+    """Process text by translating it if necessary"""
+    logger.info("Translating text...")
+    try:
+        tts_manager = state['tts_manager']
+        translated_text = tts_manager.translate_text(
+            state['description_text'],
+            state['target_language']
+        )
+        return {
+            **state,
+            "processed_text": translated_text,
+            "progress": 25
+        }
+    except Exception as e:
+        logger.error(f"Error translating text: {e}")
+        return {
+            **state,
+            "processed_text": state['description_text'],  # Fallback to original
+            "progress": 25
+        }
 
 
 def generate_audio(state: VideoGenerationState) -> VideoGenerationState:
@@ -122,7 +136,8 @@ def generate_audio(state: VideoGenerationState) -> VideoGenerationState:
         audio_content = tts_manager.synthesize_speech(
             text_to_speak,
             state['target_language'],
-            voice_name
+            voice_name,
+            translate=False  # We already translated in process_text
         )
         
         # Save audio to temporary file
@@ -184,7 +199,46 @@ def process_audio(state: VideoGenerationState) -> VideoGenerationState:
         }
 
 
-def merge_video_audio(state: VideoGenerationState) -> VideoGenerationState:
+async def generate_subtitles_node(state: VideoGenerationState) -> VideoGenerationState:
+    """Async node for generating subtitles"""
+    logger.info("Generating subtitles...")
+    db = state['db_session']
+    
+    # Update job status
+    job = db.query(Job).filter(Job.id == state['job_id']).first()
+    if job:
+        job.status = "GENERATING_SUBTITLES"
+        job.progress = 80
+        db.commit()
+
+    try:
+        video_processor = state['video_processor']
+        duration = video_processor.get_video_duration(state['input_video_path'])
+        
+        with tempfile.NamedTemporaryFile(suffix='.srt', delete=False) as srt_file:
+            subtitle_path = srt_file.name
+        
+        await video_processor.generate_srt(
+            state['processed_text'],
+            duration,
+            subtitle_path
+        )
+        
+        return {
+            **state,
+            "subtitle_path": subtitle_path,
+            "progress": 82
+        }
+    except Exception as e:
+        logger.error(f"Error in generate_subtitles_node: {e}")
+        return {
+            **state,
+            "subtitle_path": "", # Proceed without subtitles
+            "progress": 82
+        }
+
+
+async def merge_video_audio(state: VideoGenerationState) -> VideoGenerationState:
     """Merge audio and video files"""
     logger.info("Merging video and audio...")
     db = state['db_session']
@@ -199,13 +253,27 @@ def merge_video_audio(state: VideoGenerationState) -> VideoGenerationState:
     try:
         video_processor = state['video_processor']
         
-        # Merge video and audio
-        output_path = video_processor.merge_audio_video(
+        # Merge video and audio first
+        merged_path = await video_processor.merge_audio_video(
             state['input_video_path'],
-            state['audio_path']
+            state['audio_path'],
+            state['input_video_path'].replace('.mp4', '_temp_merged.mp4') # We need to provide output_path
         )
         
-        logger.info("Video and audio merging completed successfully")
+        # Now burn subtitles if they exist
+        output_path = merged_path
+        if state.get('subtitle_path') and os.path.exists(state['subtitle_path']):
+            subtitle_output = merged_path.replace('_with_audio.mp4', '_with_subtitles.mp4')
+            output_path = await video_processor.burn_subtitles(
+                merged_path,
+                state['subtitle_path'],
+                subtitle_output
+            )
+            # Clean up merged (no-sub) file if it's different from final output
+            if output_path != merged_path and os.path.exists(merged_path):
+                os.remove(merged_path)
+            
+        logger.info("Video and audio merging (plus subtitles) completed successfully")
         return {
             **state,
             "output_video_path": output_path,
@@ -241,8 +309,10 @@ def update_job_status(state: VideoGenerationState) -> VideoGenerationState:
     try:
         if state.get('audio_path') and os.path.exists(state['audio_path']):
             os.remove(state['audio_path'])
+        if state.get('subtitle_path') and os.path.exists(state['subtitle_path']):
+            os.remove(state['subtitle_path'])
     except Exception as e:
-        logger.warning(f"Could not clean up audio file: {str(e)}")
+        logger.warning(f"Could not clean up temporary files: {str(e)}")
     
     return state
 
@@ -264,6 +334,7 @@ def create_video_generation_workflow():
     workflow.add_node("process_text", process_text)
     workflow.add_node("generate_audio", generate_audio)
     workflow.add_node("process_audio", process_audio)
+    workflow.add_node("generate_subtitles", generate_subtitles_node)
     workflow.add_node("merge_video_audio", merge_video_audio)
     workflow.add_node("update_job_status", update_job_status)
     
@@ -300,6 +371,15 @@ def create_video_generation_workflow():
     
     workflow.add_conditional_edges(
         "process_audio",
+        should_continue,
+        {
+            "continue": "generate_subtitles",
+            "update_job_status": "update_job_status"
+        }
+    )
+    
+    workflow.add_conditional_edges(
+        "generate_subtitles",
         should_continue,
         {
             "continue": "merge_video_audio",
@@ -353,6 +433,7 @@ class VideoGenerationWorkflow:
                 target_language=input_data['target_language'],
                 processed_text="",
                 audio_path="",
+                subtitle_path="",
                 output_video_path="",
                 job_id=input_data['job_id'],
                 db_session=db,
